@@ -1,131 +1,120 @@
-# E-commerce Testing Platform
+# QADemo - E-Commerce Testing Platform
 
-A PHP/SQLite-based e-commerce website specifically designed for automated testing purposes. This platform provides a complete e-commerce experience with user authentication, product catalog, shopping cart, checkout process, and admin functionality.
+A modern e-commerce testing platform built with React, Hono, and Cloudflare (Pages + D1 + R2 + KV).
 
-## Features
+## 🚀 Live Demo
 
-- **User Authentication**
-  - Three user types: Standard, Locked, and Admin
-  - Secure login system with CSRF protection
-  - Session management
+**URL**: https://qademo-web.pages.dev
 
-- **Product Catalog**
-  - Responsive grid layout
-  - Product details with images
-  - Stock management
-  - Dynamic cart functionality
+### Test Accounts
+- **Standard User**: `standard_user` / `standard123`
+- **Locked User**: `locked_user` / `locked123` (account locked)
+- **Admin User**: `admin_user` / `admin123`
 
-- **Shopping Cart**
-  - Real-time quantity updates
-  - Stock validation
-  - Dynamic total calculation
-  - Persistent cart state
+## 📁 Project Structure
 
-- **Checkout Process**
-  - Shipping information validation
-  - Payment processing with card validation
-  - Order confirmation
-  - Stock updates
+```
+QADemo.com/
+├── apps/
+│   └── web/                    # Frontend + API (Pages Functions)
+│       ├── src/                # React frontend
+│       ├── functions/          # Cloudflare Pages Functions (API)
+│       │   └── api/
+│       │       ├── [[path]].ts # Catch-all API route
+│       │       └── _api/       # API routes, middleware, services
+│       ├── e2e/                # Playwright E2E tests
+│       └── dist/               # Built output
+├── packages/
+│   └── shared/                 # Shared types, schemas, utils
+├── package.json                # Root package.json
+├── pnpm-workspace.yaml         # pnpm workspace config
+└── turbo.json                  # Turborepo config
+```
 
-- **Admin Dashboard**
-  - Inventory management
-  - Order history
-  - Stock level modification
+## 🛠️ Tech Stack
 
-![QA Demo Product Catalog](https://raw.githubusercontent.com/Mani-QA/QADemo.com/refs/heads/main/QADemo.png)
+- **Frontend**: React 18 + TypeScript + Vite + TailwindCSS
+- **Backend**: Hono (as Cloudflare Pages Functions)
+- **Database**: Cloudflare D1 (SQLite-compatible)
+- **Storage**: Cloudflare R2 (for product images)
+- **Sessions**: Cloudflare KV
+- **Authentication**: JWT (access + refresh tokens)
+- **Build**: pnpm + Turborepo
 
-## Requirements
+## 🏃 Getting Started
 
-- PHP 7.4 or higher
-- SQLite3
-- Web server (Apache/Nginx)
+### Prerequisites
+- Node.js 20+
+- pnpm 9+
+- Cloudflare account (for deployment)
 
-## Installation
+### Installation
 
-1. Clone the repository to your web server directory:
-   ```bash
-   git clone <repository-url>
-   cd ecommerce-testing-platform
-   ```
+```bash
+# Install dependencies
+pnpm install
 
-2. Create the required directories:
-   ```bash
-   mkdir database
-   mkdir images
-   ```
+# Build the project
+pnpm run build
 
-3. Set proper permissions:
-   ```bash
-   chmod 755 database
-   chmod 755 images
-   ```
+# Start local development
+pnpm run dev
+```
 
-4. Ensure the web server has write permissions to the database directory.
+### Local Development with Wrangler
 
-## Default Users
+```bash
+cd apps/web
+pnpm run dev:pages
+```
 
-The platform comes with three pre-configured users:
+This starts a local server with Pages Functions and bindings.
 
-1. Standard User
-   - Username: standard_user
-   - Password: standard123
+## 🚀 Deployment
 
-2. Locked User
-   - Username: locked_user
-   - Password: locked123
+```bash
+# Deploy to Cloudflare Pages
+pnpm run deploy
+```
 
-3. Admin User
-   - Username: admin_user
-   - Password: admin123
+This builds the frontend and deploys everything (static assets + API functions) to Cloudflare Pages.
 
-## Testing Features
+### Environment Variables
 
-### User Authentication Testing
-- Test login with valid/invalid credentials
-- Verify locked user functionality
-- Test session management
-- Verify CSRF protection
+Set the following secret in Cloudflare Pages:
+```bash
+wrangler pages secret put JWT_SECRET --project-name=ecommerce
+```
 
-### Product Catalog Testing
-- Test responsive design
-- Verify product display
-- Test image loading
-- Verify stock display
+### Bindings Required
+- **D1 Database**: `DB` - for storing users, products, orders
+- **R2 Bucket**: `R2_BUCKET` - for product images
+- **KV Namespace**: `KV_SESSIONS` - for cart sessions
 
-### Shopping Cart Testing
-- Test add/remove items
-- Verify quantity updates
-- Test stock validation
-- Verify total calculation
+## 🧪 Testing
 
-### Checkout Testing
-- Test form validation
-- Verify card number validation (Luhn algorithm)
-- Test address validation
-- Verify order processing
+```bash
+# Run unit tests
+pnpm run test
 
-### Admin Testing
-- Test inventory management
-- Verify order history
-- Test stock updates
-- Verify user permissions
+# Run E2E tests
+pnpm run test:e2e
+```
 
-## Security Features
+## 📖 API Endpoints
 
-- CSRF Protection
-- Input Sanitization
-- SQL Injection Prevention
-- XSS Prevention
-- Secure Password Storage
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| POST | `/api/auth/login` | User login |
+| POST | `/api/auth/logout` | User logout |
+| GET | `/api/products` | List products |
+| GET | `/api/products/:slug` | Get product by slug |
+| GET | `/api/cart` | Get cart |
+| POST | `/api/cart/items` | Add to cart |
+| POST | `/api/orders` | Create order |
+| GET | `/api/admin/stats` | Admin dashboard stats |
 
-## Contributing
+## 📝 License
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 
+MIT
