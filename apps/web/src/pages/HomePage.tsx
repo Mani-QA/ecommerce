@@ -28,7 +28,7 @@ export default function HomePage() {
             >
               <span className="inline-flex items-center px-4 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium mb-6">
                 <Zap className="w-4 h-4 mr-2" />
-                E-Commerce Testing Platform
+                E-Commerce Automated Testing Platform
               </span>
               
               <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 leading-tight">
@@ -39,8 +39,8 @@ export default function HomePage() {
               </h1>
               
               <p className="mt-6 text-xl text-slate-600 leading-relaxed">
-                A modern e-commerce platform built for automated testing. 
-                Explore products, manage your cart, and checkout with ease.
+                A modern e-commerce platform built for practicing your Automated tests. 
+                Explore products, manage your cart, and checkout with ease using Automated tests without being blocked by captchas.
               </p>
               
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
