@@ -1,0 +1,44 @@
+# Cloudflare Workers configuration
+# This root-level config points to the web app for CI/CD deployments
+
+name = "qademo"
+main = "apps/web/src/worker/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Static Assets configuration
+[assets]
+directory = "apps/web/dist"
+binding = "ASSETS"
+
+# Serve index.html for SPA routes
+not_found_handling = "single-page-application"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "qademo-db"
+database_id = "7d737bba-ca52-46fd-9f28-2c55e3adfd26"
+
+# R2 Bucket for product images
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "qademo-images"
+
+# KV Namespace for sessions and caching
+[[kv_namespaces]]
+binding = "KV_SESSIONS"
+id = "b458b9cf54f341c68081c9958f5314ad"
+
+# Environment variables (non-secret)
+[vars]
+ENVIRONMENT = "production"
+
+# Build settings for CI/CD - builds the web app from root
+[build]
+command = "pnpm install && pnpm --filter @qademo/web run build:frontend"
+
+# Observability
+[observability]
+enabled = true
+
