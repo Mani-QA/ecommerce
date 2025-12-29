@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+coverage/
+playwright-report/
+test-results/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Editor configs
+*.code-workspace

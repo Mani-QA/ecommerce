@@ -1,0 +1,34 @@
+# Cloudflare Pages configuration
+name = "qademo"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages-specific settings
+pages_build_output_dir = "dist"
+
+# D1 Database binding
+# Create with: wrangler d1 create qademo-db
+[[d1_databases]]
+binding = "DB"
+database_name = "qademo-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# R2 Bucket for product images
+# Create with: wrangler r2 bucket create qademo-images
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "qademo-images"
+
+# KV Namespace for sessions and caching
+# Create with: wrangler kv namespace create KV_SESSIONS
+[[kv_namespaces]]
+binding = "KV_SESSIONS"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# Environment variables (non-secret)
+[vars]
+ENVIRONMENT = "production"
+
+# Secrets to set via: wrangler pages secret put JWT_SECRET
+# JWT_SECRET = "your-super-secret-jwt-key"
+
