@@ -178,6 +178,42 @@ class ApiClient {
     });
   }
 
+  async createProduct(data: {
+    name: string;
+    description?: string;
+    price: number;
+    stock: number;
+    imageKey?: string;
+  }): Promise<{ id: number; slug: string }> {
+    return this.request('/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProduct(
+    productId: number,
+    data: {
+      name?: string;
+      description?: string;
+      price?: number;
+      stock?: number;
+      imageKey?: string;
+      isActive?: boolean;
+    }
+  ): Promise<{ id: number; updated: boolean }> {
+    return this.request(`/products/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProduct(productId: number): Promise<{ id: number; deleted: boolean }> {
+    return this.request(`/products/${productId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async getAdminOrders(): Promise<(Order & { username: string })[]> {
     return this.request('/admin/orders');
   }
@@ -198,6 +234,42 @@ class ApiClient {
     lowStockProducts: Array<{ id: number; name: string; stock: number }>;
   }> {
     return this.request('/admin/stats');
+  }
+
+  async uploadImage(file: File, folder = 'products'): Promise<{
+    key: string;
+    url: string;
+    size: number;
+    type: string;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    const headers: HeadersInit = {
+      'X-Session-ID': getSessionId(),
+    };
+
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    const response = await fetch(`${API_BASE}/images`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    if (!data.success || data.error) {
+      const error = new Error(data.error?.message || 'Upload failed');
+      (error as Error & { code: string }).code = data.error?.code || 'UPLOAD_FAILED';
+      throw error;
+    }
+
+    return data.data;
   }
 }
 

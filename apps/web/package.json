@@ -5,15 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:pages": "wrangler pages dev dist --live-reload",
-    "build": "tsc -b && vite build",
+    "dev:worker": "wrangler dev",
+    "build": "pnpm run build:frontend && pnpm run build:worker",
+    "build:frontend": "tsc -b && vite build",
+    "build:worker": "tsc -p tsconfig.worker.json",
     "preview": "vite preview",
     "lint": "eslint src/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "deploy": "pnpm run build && wrangler pages deploy dist --project-name=ecommerce",
-    "clean": "rm -rf dist .wrangler"
+    "deploy": "pnpm run build:frontend && wrangler deploy",
+    "deploy:fast": "vite build && wrangler deploy",
+    "clean": "rm -rf dist .wrangler",
+    "types:worker": "wrangler types"
   },
   "dependencies": {
     "@qademo/shared": "workspace:*",
@@ -30,7 +34,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240512.0",
+    "@cloudflare/workers-types": "^4.20241218.0",
     "@eslint/js": "^9.0.0",
     "@hono/zod-validator": "^0.2.0",
     "@playwright/test": "^1.44.0",

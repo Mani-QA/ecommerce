@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createOrderSchema, isValidCardNumber, getCardLastFour } from '@qademo/shared';
 import type { Env, Variables, ProductRow, OrderRow, OrderItemRow } from '../types/bindings';
-import { productRowToProduct, orderRowToOrder } from '../types/bindings';
+import { orderRowToOrder } from '../types/bindings';
 import { errors } from '../middleware/error-handler';
 import { authMiddleware } from '../middleware/auth';
 import { noCacheMiddleware } from '../middleware/cache';

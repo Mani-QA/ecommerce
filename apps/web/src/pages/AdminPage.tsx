@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, ShoppingBag, Users, Clock, AlertTriangle } from 'lucide-react';
+import { Package, ShoppingBag, Users, Clock, AlertTriangle, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   useAdminProducts,
@@ -7,23 +7,32 @@ import {
   useAdminStats,
   useUpdateProductStock,
   useUpdateOrderStatus,
+  useCreateProduct,
+  useUpdateProduct,
 } from '@/hooks/useAdmin';
 import { formatPrice, formatDateTime } from '@qademo/shared';
+import type { Product } from '@qademo/shared';
 import { getImageUrl } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Card, { CardContent, CardHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ProductModal, { type ProductFormData } from '@/components/admin/ProductModal';
 
 type Tab = 'overview' | 'products' | 'orders';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
   const { data: stats, isLoading: statsLoading } = useAdminStats();
   const { data: products, isLoading: productsLoading } = useAdminProducts();
   const { data: orders, isLoading: ordersLoading } = useAdminOrders();
   const updateStock = useUpdateProductStock();
   const updateStatus = useUpdateOrderStatus();
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
 
   const tabs = [
     { id: 'overview' as Tab, label: 'Overview', icon: Package },
@@ -37,6 +46,40 @@ export default function AdminPage() {
 
   const handleStatusUpdate = async (orderId: number, newStatus: string) => {
     await updateStatus.mutateAsync({ orderId, status: newStatus });
+  };
+
+  const handleAddProduct = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveProduct = async (data: ProductFormData) => {
+    if (editingProduct) {
+      await updateProduct.mutateAsync({
+        productId: editingProduct.id,
+        data: {
+          name: data.name,
+          description: data.description || undefined,
+          price: data.price,
+          stock: data.stock,
+          isActive: data.isActive,
+          imageKey: data.imageKey,
+        },
+      });
+    } else {
+      await createProduct.mutateAsync({
+        name: data.name,
+        description: data.description || undefined,
+        price: data.price,
+        stock: data.stock,
+        imageKey: data.imageKey,
+      });
+    }
   };
 
   return (
@@ -177,7 +220,13 @@ export default function AdminPage() {
             ) : (
               <Card>
                 <CardHeader>
-                  <h2 className="text-lg font-bold text-slate-900">Inventory Management</h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-900">Inventory Management</h2>
+                    <Button onClick={handleAddProduct} size="sm">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Product
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
@@ -237,7 +286,11 @@ export default function AdminPage() {
                               </Badge>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditProduct(product)}
+                              >
                                 Edit
                               </Button>
                             </td>
@@ -321,6 +374,15 @@ export default function AdminPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Product Modal */}
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveProduct}
+        product={editingProduct}
+        isLoading={createProduct.isPending || updateProduct.isPending}
+      />
     </div>
   );
 }

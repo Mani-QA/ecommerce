@@ -63,12 +63,16 @@ imageRoutes.post('/', adminMiddleware(), async (c) => {
   const bucket = c.env.R2_BUCKET;
   
   const formData = await c.req.formData();
-  const file = formData.get('file');
-  const folder = formData.get('folder') || 'products';
+  const fileEntry = formData.get('file');
+  const folderEntry = formData.get('folder');
+  const folder = typeof folderEntry === 'string' ? folderEntry : 'products';
 
-  if (!file || !(file instanceof File)) {
+  if (!fileEntry || typeof fileEntry === 'string') {
     throw errors.validation('No file provided');
   }
+
+  // Cast to File type for Workers environment
+  const file = fileEntry as unknown as File;
 
   // Validate file type
   if (!ALLOWED_TYPES.includes(file.type)) {

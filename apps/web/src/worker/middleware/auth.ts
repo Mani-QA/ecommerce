@@ -5,7 +5,7 @@ import type { Env, Variables } from '../types/bindings';
 import { errors } from './error-handler';
 
 interface TokenPayload {
-  sub: number;
+  sub: string;
   username: string;
   userType: UserType;
 }
@@ -33,7 +33,7 @@ export function authMiddleware(): MiddlewareHandler<{
       const tokenPayload = payload as unknown as TokenPayload;
 
       c.set('user', {
-        id: tokenPayload.sub,
+        id: Number(tokenPayload.sub),
         username: tokenPayload.username,
         userType: tokenPayload.userType,
       });
@@ -68,7 +68,7 @@ export function optionalAuthMiddleware(): MiddlewareHandler<{
         const tokenPayload = payload as unknown as TokenPayload;
 
         c.set('user', {
-          id: tokenPayload.sub,
+          id: Number(tokenPayload.sub),
           username: tokenPayload.username,
           userType: tokenPayload.userType,
         });
@@ -109,7 +109,7 @@ export function adminMiddleware(): MiddlewareHandler<{
       }
 
       c.set('user', {
-        id: tokenPayload.sub,
+        id: Number(tokenPayload.sub),
         username: tokenPayload.username,
         userType: tokenPayload.userType,
       });
@@ -134,7 +134,7 @@ export async function generateAccessToken(
   const secretKey = new TextEncoder().encode(secret);
 
   return await new jose.SignJWT({
-    sub: user.id,
+    sub: String(user.id),
     username: user.username,
     userType: user.userType,
   })
@@ -154,7 +154,7 @@ export async function generateRefreshToken(
   const secretKey = new TextEncoder().encode(secret);
 
   return await new jose.SignJWT({
-    sub: userId,
+    sub: String(userId),
     type: 'refresh',
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -177,7 +177,7 @@ export async function verifyRefreshToken(
     throw new Error('Invalid token type');
   }
 
-  return payload.sub as number;
+  return Number(payload.sub);
 }
 
 /**

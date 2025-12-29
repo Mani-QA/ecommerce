@@ -1,17 +1,22 @@
-# Cloudflare Pages configuration
+# Cloudflare Workers configuration
 name = "qademo"
-compatibility_date = "2024-01-01"
+main = "src/worker/index.ts"
+compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Pages-specific settings
-pages_build_output_dir = "dist"
+# Static Assets configuration (replaces Pages)
+[assets]
+directory = "dist"
+binding = "ASSETS"
+
+# Serve index.html for SPA routes
+not_found_handling = "single-page-application"
 
 # D1 Database binding
-# Create with: wrangler d1 create qademo-db
 [[d1_databases]]
 binding = "DB"
 database_name = "qademo-db"
-database_id = "YOUR_D1_DATABASE_ID"
+database_id = "7d737bba-ca52-46fd-9f28-2c55e3adfd26"
 
 # R2 Bucket for product images
 # Create with: wrangler r2 bucket create qademo-images
@@ -20,15 +25,25 @@ binding = "R2_BUCKET"
 bucket_name = "qademo-images"
 
 # KV Namespace for sessions and caching
-# Create with: wrangler kv namespace create KV_SESSIONS
 [[kv_namespaces]]
 binding = "KV_SESSIONS"
-id = "YOUR_KV_NAMESPACE_ID"
+id = "b458b9cf54f341c68081c9958f5314ad"
 
 # Environment variables (non-secret)
 [vars]
 ENVIRONMENT = "production"
 
-# Secrets to set via: wrangler pages secret put JWT_SECRET
+# Secrets to set via: wrangler secret put JWT_SECRET
 # JWT_SECRET = "your-super-secret-jwt-key"
 
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"
+
+# Build settings - build is handled by deploy script, not wrangler
+# This avoids duplicate builds during deployment
+
+# Observability
+[observability]
+enabled = true

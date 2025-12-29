@@ -12,6 +12,7 @@
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "deploy": "pnpm --filter @qademo/web run deploy",
+    "deploy:fast": "pnpm --filter @qademo/web run deploy:fast",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {

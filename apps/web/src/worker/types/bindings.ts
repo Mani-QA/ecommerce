@@ -11,6 +11,9 @@ export interface Env {
   // KV Namespace for sessions
   KV_SESSIONS: KVNamespace;
 
+  // Static Assets (Workers Static Assets)
+  ASSETS: Fetcher;
+
   // Environment variables
   ENVIRONMENT: string;
   JWT_SECRET: string;
@@ -101,6 +104,7 @@ export function productRowToProduct(row: ProductRow) {
     price: row.price,
     stock: row.stock,
     imageKey: row.image_key,
+    imageUrl: undefined as string | undefined,
     isActive: row.is_active === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
