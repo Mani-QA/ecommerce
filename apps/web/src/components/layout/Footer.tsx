@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function Footer() {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <footer className="bg-slate-900 text-slate-400 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,11 +35,13 @@ export default function Footer() {
                   Cart
                 </Link>
               </li>
-              <li>
-                <Link to="/login" className="text-sm hover:text-brand-400 transition-colors">
-                  Sign In
-                </Link>
-              </li>
+              {!isAuthenticated && (
+                <li>
+                  <Link to="/login" className="text-sm hover:text-brand-400 transition-colors">
+                    Sign In
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 

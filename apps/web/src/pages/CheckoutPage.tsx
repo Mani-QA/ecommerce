@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ArrowLeft, CreditCard, Truck, AlertCircle } from 'lucide-react';
@@ -21,6 +21,27 @@ interface CheckoutForm {
   nameOnCard: string;
 }
 
+// Format card number into groups of 4 digits
+const formatCardNumber = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  const groups = digits.match(/.{1,4}/g) || [];
+  return groups.join(' ').slice(0, 19); // Max 16 digits + 3 spaces
+};
+
+// Format expiry date as MM/YY
+const formatExpiryDate = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length >= 2) {
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
+  }
+  return digits;
+};
+
+// Format CVV - only digits, max 4
+const formatCVV = (value: string): string => {
+  return value.replace(/\D/g, '').slice(0, 4);
+};
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, totalAmount, clearCart } = useCartStore();
@@ -30,8 +51,27 @@ export default function CheckoutPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CheckoutForm>();
+
+  // Handle card number input with formatting
+  const handleCardNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCardNumber(e.target.value);
+    setValue('cardNumber', formatted, { shouldValidate: true });
+  };
+
+  // Handle expiry date input with auto-formatting
+  const handleExpiryChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatExpiryDate(e.target.value);
+    setValue('expiry', formatted, { shouldValidate: true });
+  };
+
+  // Handle CVV input - numbers only
+  const handleCVVChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCVV(e.target.value);
+    setValue('cvv', formatted, { shouldValidate: true });
+  };
 
   // Redirect if cart is empty
   if (items.length === 0) {
@@ -162,12 +202,15 @@ export default function CheckoutPage() {
                     {...register('cardNumber', {
                       required: 'Card number is required',
                       pattern: {
-                        value: /^[\d\s]{13,19}$/,
-                        message: 'Invalid card number format',
+                        value: /^[\d\s]{16,19}$/,
+                        message: 'Enter a valid 16-digit card number',
                       },
+                      onChange: handleCardNumberChange,
                     })}
-                    placeholder="1234 5678 9012 3456"
+                    placeholder="4242 4242 4242 4242"
                     error={errors.cardNumber?.message}
+                    maxLength={19}
+                    inputMode="numeric"
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Input
@@ -178,9 +221,12 @@ export default function CheckoutPage() {
                           value: /^\d{2}\/\d{2}$/,
                           message: 'Format: MM/YY',
                         },
+                        onChange: handleExpiryChange,
                       })}
                       placeholder="MM/YY"
                       error={errors.expiry?.message}
+                      maxLength={5}
+                      inputMode="numeric"
                     />
                     <Input
                       label="CVV"
@@ -190,10 +236,12 @@ export default function CheckoutPage() {
                           value: /^\d{3,4}$/,
                           message: '3-4 digits',
                         },
+                        onChange: handleCVVChange,
                       })}
                       placeholder="123"
                       error={errors.cvv?.message}
                       maxLength={4}
+                      inputMode="numeric"
                     />
                   </div>
                   <Input

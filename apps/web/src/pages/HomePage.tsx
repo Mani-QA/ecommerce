@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Zap, Shield, Truck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useProducts } from '@/hooks/useProducts';
+import { useAuthStore } from '@/stores/authStore';
 import ProductCard from '@/components/products/ProductCard';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function HomePage() {
   const { data: products, isLoading } = useProducts();
+  const { isAuthenticated } = useAuthStore();
 
   const featuredProducts = products?.slice(0, 6) || [];
 
@@ -32,15 +34,14 @@ export default function HomePage() {
               </span>
               
               <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 leading-tight">
-                Shop the Future of
+              Your Playground for 
                 <span className="bg-gradient-to-r from-brand-600 to-accent-500 bg-clip-text text-transparent">
-                  {' '}Testing
+                  {' '}Automated Testing
                 </span>
               </h1>
               
               <p className="mt-6 text-xl text-slate-600 leading-relaxed">
-                A modern e-commerce platform built for practicing your Automated tests. 
-                Explore products, manage your cart, and checkout with ease using Automated tests without being blocked by captchas.
+              A realistic e-commerce environment designed specifically for practicing automated testing. Execute end-to-end flows—from product discovery to checkout—in a captcha-free environment.
               </p>
               
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -49,11 +50,13 @@ export default function HomePage() {
                     Browse Products
                   </Button>
                 </Link>
-                <Link to="/login">
-                  <Button variant="secondary" size="lg">
-                    Sign In
-                  </Button>
-                </Link>
+                {!isAuthenticated && (
+                  <Link to="/login">
+                    <Button variant="secondary" size="lg">
+                      Sign In
+                    </Button>
+                  </Link>
+                )}
               </div>
             </motion.div>
           </div>
@@ -135,25 +138,41 @@ export default function HomePage() {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl lg:text-4xl font-bold text-white">
-              Ready to Start Testing?
+              {isAuthenticated ? 'Start Exploring' : 'Ready to Start Testing?'}
             </h2>
             <p className="mt-4 text-xl text-brand-100 max-w-2xl mx-auto">
-              Use our test accounts to explore the full e-commerce experience.
+              {isAuthenticated 
+                ? 'Browse our products and test the complete e-commerce experience.'
+                : 'Use our test accounts to explore the full e-commerce experience.'}
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/login">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="bg-white text-brand-600 hover:bg-brand-50"
-                >
-                  Sign In Now
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link to="/catalog">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="bg-white text-brand-600 hover:bg-brand-50"
+                  >
+                    Browse Products
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/login">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="bg-white text-brand-600 hover:bg-brand-50"
+                  >
+                    Sign In Now
+                  </Button>
+                </Link>
+              )}
             </div>
-            <div className="mt-8 text-sm text-brand-200">
-              <p>Test accounts: standard_user / locked_user / admin_user</p>
-            </div>
+            {!isAuthenticated && (
+              <div className="mt-8 text-sm text-brand-200">
+                <p>Test accounts: standard_user / locked_user / admin_user</p>
+              </div>
+            )}
           </motion.div>
         </div>
       </section>
