@@ -1,53 +1,256 @@
 # QADemo - E-Commerce Testing Platform
 
-A modern e-commerce testing platform built with React, Hono, and Cloudflare Workers (with Static Assets + D1 + R2 + KV).
+A production-grade e-commerce application specifically designed for practicing and learning automated testing with tools like **Playwright**, **Selenium**, **Cypress**, and other test automation frameworks.
+
+Built with modern technologies: React, Hono, and Cloudflare Workers with Static Assets + D1 + R2 + KV.
 
 ## 🚀 Live Demo
 
-**URL**: https://qademo-web.pages.dev
+**URL**: https://qademo.www5.workers.dev
 
 ### Test Accounts
-- **Standard User**: `standard_user` / `standard123`
-- **Locked User**: `locked_user` / `locked123` (account locked)
-- **Admin User**: `admin_user` / `admin123`
+
+| Username | Password | Role | Description |
+|----------|----------|------|-------------|
+| `standard_user` | `standard123` | User | Normal user with full access |
+| `locked_user` | `locked123` | User | Account is locked (login fails) |
+| `admin_user` | `admin123` | Admin | Full admin access + dashboard |
+
+---
+
+## 🎯 Why Use QADemo for Automation Practice?
+
+QADemo is purpose-built for QA engineers and developers learning test automation. Unlike production apps with CAPTCHAs and rate limits, QADemo provides:
+
+### ✅ Automation-Friendly Features
+
+- **No CAPTCHA** - Practice freely without solving puzzles
+- **No Rate Limiting** - Run tests as fast as you need
+- **Predictable Test Data** - Pre-seeded users and products
+- **Stable Selectors** - Consistent HTML structure for reliable locators
+- **Real API Backend** - Practice API testing alongside UI testing
+- **Multiple User Roles** - Test different permission levels
+- **Real Payment Flow** - Simulated checkout with test card (`4242 4242 4242 4242`)
+
+### 🧪 Test Scenarios You Can Practice
+
+| Category | Scenarios |
+|----------|-----------|
+| **Authentication** | Login/logout, invalid credentials, locked account handling, session persistence |
+| **Product Browsing** | Search/filter products, view details, pagination, product images |
+| **Shopping Cart** | Add/remove items, update quantities, cart persistence, empty cart states |
+| **Checkout Flow** | Form validation, credit card input formatting, order placement |
+| **Order Management** | View order history, order details, order status tracking |
+| **Admin Features** | Dashboard stats, product CRUD, order management, stock updates |
+| **Responsive Design** | Mobile menu, breakpoint testing, touch interactions |
+| **Error Handling** | Network errors, validation errors, edge cases |
+
+### 🔍 Recommended Locator Strategies
+
+```javascript
+// By Role (Playwright recommended)
+page.getByRole('button', { name: 'Sign In' })
+page.getByRole('link', { name: 'Products' })
+page.getByRole('heading', { name: 'My Orders' })
+
+// By Label
+page.getByLabel('Email')
+page.getByLabel('Password')
+
+// By Placeholder
+page.getByPlaceholder('4242 4242 4242 4242')
+
+// By Text
+page.getByText('Add to Cart')
+page.getByText('In Cart')
+
+// By Test ID (if needed)
+page.locator('[data-testid="product-card"]')
+```
+
+### 📝 Sample Playwright Test
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Login Flow', () => {
+  test('should login with standard user', async ({ page }) => {
+    await page.goto('https://qademo.www5.workers.dev/login');
+    
+    await page.getByLabel('Username').fill('standard_user');
+    await page.getByLabel('Password').fill('standard123');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+    
+    await expect(page.getByText('standard_user')).toBeVisible();
+  });
+
+  test('should show error for locked user', async ({ page }) => {
+    await page.goto('https://qademo.www5.workers.dev/login');
+    
+    await page.getByLabel('Username').fill('locked_user');
+    await page.getByLabel('Password').fill('locked123');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+    
+    await expect(page.getByText('Account is locked')).toBeVisible();
+  });
+});
+
+test.describe('Shopping Cart', () => {
+  test('should add product to cart', async ({ page }) => {
+    await page.goto('https://qademo.www5.workers.dev/catalog');
+    
+    // Add first product
+    await page.getByRole('button', { name: 'Add' }).first().click();
+    
+    // Verify button changes to "In Cart"
+    await expect(page.getByRole('button', { name: 'In Cart' }).first()).toBeVisible();
+    
+    // Verify cart badge shows 1
+    await expect(page.locator('.bg-brand-500').filter({ hasText: '1' })).toBeVisible();
+  });
+});
+
+test.describe('Checkout Flow', () => {
+  test.beforeEach(async ({ page }) => {
+    // Login first
+    await page.goto('https://qademo.www5.workers.dev/login');
+    await page.getByLabel('Username').fill('standard_user');
+    await page.getByLabel('Password').fill('standard123');
+    await page.getByRole('button', { name: 'Sign In' }).click();
+  });
+
+  test('should complete checkout', async ({ page }) => {
+    // Add to cart
+    await page.goto('https://qademo.www5.workers.dev/catalog');
+    await page.getByRole('button', { name: 'Add' }).first().click();
+    
+    // Go to cart
+    await page.goto('https://qademo.www5.workers.dev/cart');
+    await page.getByRole('link', { name: 'Proceed to Checkout' }).click();
+    
+    // Checkout form is pre-filled with test data
+    await page.getByRole('button', { name: /Place Order/ }).click();
+    
+    // Verify order confirmation
+    await expect(page.getByText('Order Confirmed!')).toBeVisible();
+  });
+});
+```
+
+---
+
+## ✨ E-Commerce Features
+
+### Customer Features
+- **Product Catalog** - Browse products with images and descriptions
+- **Product Details** - Detailed view with stock information
+- **Shopping Cart** - Add, remove, update quantities
+- **Checkout** - Shipping address and payment form with auto-formatting
+- **Order History** - View all orders and their status
+- **User Authentication** - Login/logout with JWT tokens
+
+### Admin Features
+- **Dashboard** - Overview stats (orders, revenue, products)
+- **Product Management** - Add, edit, update stock, upload images
+- **Order Management** - View all orders, update order status
+- **Inventory Control** - Real-time stock updates
+
+### UI/UX Features
+- **Responsive Design** - Works on desktop, tablet, mobile
+- **Modern UI** - Clean design with Tailwind CSS
+- **Animations** - Smooth transitions with Framer Motion
+- **Loading States** - Proper loading indicators
+- **Error Handling** - User-friendly error messages
+- **Form Validation** - Real-time input validation
+
+---
 
 ## 📁 Project Structure
 
 ```
 QADemo.com/
 ├── apps/
-│   └── web/                    # Frontend + API (Cloudflare Worker)
+│   └── web/                      # Frontend + API (Cloudflare Worker)
 │       ├── src/
-│       │   ├── components/     # React components
-│       │   ├── pages/          # Page components
-│       │   ├── stores/         # Zustand stores
-│       │   ├── hooks/          # Custom hooks
-│       │   └── worker/         # Cloudflare Worker API
-│       │       ├── index.ts    # Worker entry point
-│       │       ├── routes/     # API route handlers
-│       │       ├── middleware/ # Auth, caching, error handling
-│       │       ├── services/   # Business logic services
-│       │       └── types/      # TypeScript types & bindings
-│       ├── e2e/                # Playwright E2E tests
-│       ├── dist/               # Built static assets
-│       └── wrangler.toml       # Cloudflare Workers config
+│       │   ├── components/       # Reusable React components
+│       │   │   ├── admin/        # Admin-specific components
+│       │   │   ├── auth/         # Auth guards (ProtectedRoute, AdminRoute)
+│       │   │   ├── layout/       # Navbar, Footer, Layout
+│       │   │   ├── products/     # ProductCard, ProductGrid
+│       │   │   └── ui/           # Button, Card, Input, Badge, etc.
+│       │   ├── pages/            # Route page components
+│       │   │   ├── HomePage.tsx
+│       │   │   ├── CatalogPage.tsx
+│       │   │   ├── ProductPage.tsx
+│       │   │   ├── CartPage.tsx
+│       │   │   ├── CheckoutPage.tsx
+│       │   │   ├── OrdersPage.tsx
+│       │   │   ├── OrderConfirmationPage.tsx
+│       │   │   ├── LoginPage.tsx
+│       │   │   └── AdminPage.tsx
+│       │   ├── stores/           # Zustand state management
+│       │   │   ├── authStore.ts  # User auth state
+│       │   │   └── cartStore.ts  # Shopping cart state
+│       │   ├── hooks/            # Custom React hooks
+│       │   ├── lib/              # API client, utilities
+│       │   └── worker/           # Cloudflare Worker API
+│       │       ├── index.ts      # Worker entry point (Hono app)
+│       │       ├── routes/       # API route handlers
+│       │       ├── middleware/   # Auth, caching, error handling
+│       │       ├── services/     # Business logic (password hashing)
+│       │       └── types/        # TypeScript types & DB bindings
+│       ├── e2e/                  # Playwright E2E tests
+│       ├── dist/                 # Built static assets (Vite output)
+│       └── wrangler.toml         # Cloudflare Workers configuration
 ├── packages/
-│   └── shared/                 # Shared types, schemas, utils
-├── package.json                # Root package.json
-├── pnpm-workspace.yaml         # pnpm workspace config
-└── turbo.json                  # Turborepo config
+│   └── shared/                   # Shared types, schemas, utilities
+│       ├── types/                # TypeScript interfaces
+│       ├── schemas/              # Zod validation schemas
+│       └── utils/                # formatPrice, formatDate, etc.
+├── package.json                  # Root package.json
+├── pnpm-workspace.yaml           # pnpm workspace config
+└── turbo.json                    # Turborepo build config
 ```
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + TailwindCSS
-- **Backend**: Hono (running as Cloudflare Worker)
-- **Static Assets**: Cloudflare Workers Static Assets
-- **Database**: Cloudflare D1 (SQLite-compatible)
-- **Storage**: Cloudflare R2 (for product images)
-- **Sessions**: Cloudflare KV
-- **Authentication**: JWT (access + refresh tokens)
-- **Build**: pnpm + Turborepo
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| React 18 | UI framework with hooks and concurrent features |
+| TypeScript | Type safety and better DX |
+| Vite | Lightning-fast build tool and dev server |
+| TailwindCSS | Utility-first CSS framework |
+| Framer Motion | Smooth animations and transitions |
+| React Router 6 | Client-side routing with lazy loading |
+| React Query | Server state management and caching |
+| Zustand | Lightweight client state management |
+| React Hook Form | Performant form handling |
+| Zod | Schema validation |
+
+### Backend (Cloudflare Workers)
+| Technology | Purpose |
+|------------|---------|
+| Hono | Ultrafast web framework for edge |
+| Cloudflare D1 | SQLite-compatible serverless database |
+| Cloudflare R2 | S3-compatible object storage (images) |
+| Cloudflare KV | Key-value storage (sessions, cart) |
+| Jose | JWT token generation and verification |
+| Web Crypto API | Password hashing (PBKDF2) |
+
+### Development
+| Tool | Purpose |
+|------|---------|
+| pnpm | Fast, disk-efficient package manager |
+| Turborepo | Monorepo build system with caching |
+| Wrangler | Cloudflare CLI for dev and deployment |
+| Playwright | E2E testing framework |
+| Vitest | Unit testing framework |
+| ESLint | Code linting |
+
+---
 
 ## 🏃 Getting Started
 
@@ -59,6 +262,10 @@ QADemo.com/
 ### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/QADemo.com.git
+cd QADemo.com
+
 # Install dependencies
 pnpm install
 
@@ -76,29 +283,33 @@ cd apps/web
 pnpm run dev:worker
 ```
 
-This starts a local server with the Worker and all bindings (D1, R2, KV).
+This starts a local server at `http://localhost:8787` with:
+- Full Worker functionality
+- Local D1 database
+- Local R2 storage
+- Local KV store
+
+---
 
 ## 🚀 Deployment
 
+### Quick Deploy
+
 ```bash
-# Deploy to Cloudflare Workers
+# Fast deployment (frontend build + wrangler deploy)
+pnpm run deploy:fast
+
+# Full deployment (with TypeScript checks)
 pnpm run deploy
 ```
 
-This builds the frontend and deploys everything (static assets + Worker) to Cloudflare.
+### First-Time Setup
 
-### Environment Variables
-
-Set the following secret in Cloudflare:
-```bash
-wrangler secret put JWT_SECRET
-```
-
-### Bindings Required
-
-Create the following resources before deployment:
+1. **Create Cloudflare Resources:**
 
 ```bash
+cd apps/web
+
 # D1 Database
 wrangler d1 create qademo-db
 
@@ -109,55 +320,167 @@ wrangler r2 bucket create qademo-images
 wrangler kv namespace create KV_SESSIONS
 ```
 
-Update `wrangler.toml` with the generated IDs.
+2. **Update `wrangler.toml`** with the generated IDs.
 
-## 🧪 Testing
+3. **Set JWT Secret:**
+
+```bash
+wrangler secret put JWT_SECRET
+# Enter a secure random string
+```
+
+4. **Initialize Database:**
+
+```bash
+wrangler d1 execute qademo-db --file=./schema.sql
+```
+
+5. **Deploy:**
+
+```bash
+pnpm run deploy
+```
+
+---
+
+## 📖 API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login` | Login with username/password |
+| POST | `/api/auth/logout` | Logout (invalidate tokens) |
+| POST | `/api/auth/refresh` | Refresh access token |
+| GET | `/api/auth/me` | Get current user profile |
+
+### Products
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/products` | List all products |
+| GET | `/api/products/:slug` | Get product by slug |
+| POST | `/api/products` | Create product (admin) |
+| PATCH | `/api/admin/products/:id` | Update product (admin) |
+| DELETE | `/api/admin/products/:id` | Delete product (admin) |
+
+### Cart
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/cart` | Get current cart |
+| POST | `/api/cart/items` | Add item to cart |
+| PATCH | `/api/cart/items/:id` | Update item quantity |
+| DELETE | `/api/cart/items/:id` | Remove item from cart |
+| DELETE | `/api/cart` | Clear entire cart |
+
+### Orders
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/orders` | Create new order |
+| GET | `/api/orders` | List user's orders |
+| GET | `/api/orders/:id` | Get order details |
+
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/stats` | Dashboard statistics |
+| GET | `/api/admin/products` | All products with full details |
+| GET | `/api/admin/orders` | All orders |
+| PATCH | `/api/admin/orders/:id/status` | Update order status |
+
+### Images
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/images` | Upload image to R2 |
+| GET | `/api/images/:key` | Get image by key |
+
+### Health
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | API health check |
+
+---
+
+## 🔧 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Cloudflare Global Network                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐    ┌──────────────────────────────────┐  │
+│  │   Static Assets   │    │      Cloudflare Worker           │  │
+│  │   (React SPA)     │    │      (Hono API Server)           │  │
+│  │                   │    │                                   │  │
+│  │  • HTML/CSS/JS    │◄──►│  • /api/* routes                 │  │
+│  │  • Images         │    │  • JWT Authentication            │  │
+│  │  • Fonts          │    │  • Request validation            │  │
+│  │                   │    │  • Business logic                │  │
+│  └──────────────────┘    └──────────────────────────────────┘  │
+│                                     │                            │
+│           ┌────────────────────────┼────────────────────────┐   │
+│           │                        │                         │   │
+│           ▼                        ▼                         ▼   │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌──────────────┐ │
+│  │   Cloudflare D1  │    │  Cloudflare KV  │    │ Cloudflare R2│ │
+│  │   (SQLite DB)    │    │  (Sessions)     │    │ (Images)     │ │
+│  │                  │    │                 │    │              │ │
+│  │  • Users         │    │  • Cart data    │    │  • Product   │ │
+│  │  • Products      │    │  • Session      │    │    images    │ │
+│  │  • Orders        │    │    tokens       │    │              │ │
+│  │  • Order Items   │    │                 │    │              │ │
+│  └─────────────────┘    └─────────────────┘    └──────────────┘ │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Workers over Pages** | Unified deployment, full feature access, better local dev |
+| **Hono Framework** | Ultrafast, Express-like API, native Workers support |
+| **D1 for Database** | SQLite at the edge, zero cold starts, automatic replication |
+| **KV for Sessions** | Sub-millisecond reads, perfect for session/cart data |
+| **R2 for Images** | S3-compatible, no egress fees, global distribution |
+| **Zustand for State** | Minimal bundle size, simple API, persistence support |
+| **React Query** | Automatic caching, background refetching, optimistic updates |
+
+---
+
+## 🧪 Running Tests
 
 ```bash
 # Run unit tests
 pnpm run test
 
-# Run E2E tests
+# Run E2E tests with Playwright
 pnpm run test:e2e
+
+# Run E2E tests in headed mode (watch browser)
+pnpm run test:e2e -- --headed
+
+# Run specific test file
+pnpm run test:e2e -- tests/login.spec.ts
 ```
 
-## 📖 API Endpoints
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| POST | `/api/auth/login` | User login |
-| POST | `/api/auth/logout` | User logout |
-| POST | `/api/auth/refresh` | Refresh access token |
-| GET | `/api/auth/me` | Get current user |
-| GET | `/api/products` | List products |
-| GET | `/api/products/:slug` | Get product by slug |
-| GET | `/api/cart` | Get cart |
-| POST | `/api/cart/items` | Add to cart |
-| PATCH | `/api/cart/items/:id` | Update cart item |
-| DELETE | `/api/cart/items/:id` | Remove from cart |
-| POST | `/api/orders` | Create order |
-| GET | `/api/orders` | List orders |
-| GET | `/api/orders/:id` | Get order details |
-| GET | `/api/admin/stats` | Admin dashboard stats |
-| GET | `/api/admin/products` | Admin product list |
-| GET | `/api/admin/orders` | Admin order list |
+## 🤝 Contributing
 
-## 🔧 Architecture
+This project is designed for educational purposes. Feel free to:
 
-This project uses **Cloudflare Workers with Static Assets** - the new unified platform that combines:
+1. Fork the repository
+2. Add new test scenarios
+3. Improve documentation
+4. Submit pull requests
 
-- **Static Assets**: React SPA served from Cloudflare's edge CDN
-- **Worker API**: Hono-based API running on Workers runtime
-- **Full bindings support**: D1, R2, KV, Durable Objects, Queues, etc.
-
-### Why Workers over Pages?
-
-- **Unified platform**: Single deployment for frontend + backend
-- **Full feature access**: Durable Objects, Cron Triggers, Queues
-- **Better local dev**: `wrangler dev` with complete bindings
-- **Future-proof**: Cloudflare's recommended path forward
+---
 
 ## 📝 License
 
-MIT
+MIT License - feel free to use this project for learning and practice.
+
+---
+
+## 🙏 Acknowledgments
+
+Built as a testing playground inspired by [SauceDemo](https://www.saucedemo.com/) - designed to provide a more feature-rich and modern testing environment for QA engineers.
