@@ -69,10 +69,14 @@ export default function Navbar() {
                     </Button>
                   </Link>
                 )}
-                <div className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+                <Link
+                  to="/orders"
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+                  title="View my orders"
+                >
                   <User className="w-4 h-4 text-slate-500" />
                   <span className="text-sm font-medium text-slate-700">{user?.username}</span>
-                </div>
+                </Link>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4" />
                 </Button>
@@ -122,6 +126,13 @@ export default function Navbar() {
               </Link>
               {isAuthenticated ? (
                 <>
+                  <Link
+                    to="/orders"
+                    className="block px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    My Orders ({user?.username})
+                  </Link>
                   {user?.userType === 'admin' && (
                     <Link
                       to="/admin"

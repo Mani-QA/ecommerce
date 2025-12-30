@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { ShoppingCart, Check } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Product } from '@qademo/shared';
 import { formatPrice } from '@qademo/shared';
@@ -13,18 +13,26 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index = 0 }: ProductCardProps) {
+  const navigate = useNavigate();
   const { addItem, removeItem, isInCart } = useCartStore();
   const inCart = isInCart(product.id);
 
-  const handleCartAction = (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    addItem(product);
+  };
 
-    if (inCart) {
-      removeItem(product.id);
-    } else {
-      addItem(product);
-    }
+  const handleGoToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate('/cart');
+  };
+
+  const handleRemoveFromCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    removeItem(product.id);
   };
 
   return (
@@ -67,24 +75,35 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
               <span className="text-xl font-bold text-slate-900">
                 {formatPrice(product.price)}
               </span>
-              <Button
-                variant={inCart ? 'secondary' : 'primary'}
-                size="sm"
-                onClick={handleCartAction}
-                disabled={product.stock === 0}
-              >
-                {inCart ? (
-                  <>
+              {inCart ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleRemoveFromCart}
+                    className="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                    title="Remove from cart"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleGoToCart}
+                  >
                     <Check className="w-4 h-4 mr-1" />
                     In Cart
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="w-4 h-4 mr-1" />
-                    Add
-                  </>
-                )}
-              </Button>
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              )}
             </div>
           </div>
         </div>
