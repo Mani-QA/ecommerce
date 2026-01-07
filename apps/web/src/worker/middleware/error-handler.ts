@@ -4,14 +4,15 @@ import { ZodError } from 'zod';
 import type { Env, Variables } from '../types/bindings';
 
 /**
- * Custom API error class
+ * Custom API error class with optional cache headers
  */
 export class ApiError extends Error {
   constructor(
     public code: string,
     message: string,
     public status: number = 400,
-    public details?: Record<string, string[]>
+    public details?: Record<string, string[]>,
+    public cacheHeaders?: Record<string, string>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -53,6 +54,13 @@ export const errorHandler: ErrorHandler<{ Bindings: Env; Variables: Variables }>
 
   // Handle custom API errors
   if (err instanceof ApiError) {
+    // Apply cache headers if present
+    if (err.cacheHeaders) {
+      Object.entries(err.cacheHeaders).forEach(([key, value]) => {
+        c.header(key, value);
+      });
+    }
+    
     return c.json(
       {
         success: false,
@@ -98,12 +106,26 @@ export const errorHandler: ErrorHandler<{ Bindings: Env; Variables: Variables }>
 /**
  * Create common API errors
  */
+// Aggressive cache headers for public 404 responses (24 hours, stale for 7 days)
+// Only use for truly public resources like products and images
+const PUBLIC_404_CACHE_HEADERS: Record<string, string> = {
+  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+  'CDN-Cache-Control': 'public, max-age=86400',
+};
+
 export const errors = {
   unauthorized: (message = 'Unauthorized') => new ApiError('UNAUTHORIZED', message, 401),
 
   forbidden: (message = 'Forbidden') => new ApiError('FORBIDDEN', message, 403),
 
-  notFound: (resource = 'Resource') => new ApiError('NOT_FOUND', `${resource} not found`, 404),
+  // Default notFound - NO caching (safe for authenticated/user-specific resources)
+  notFound: (resource = 'Resource') => 
+    new ApiError('NOT_FOUND', `${resource} not found`, 404),
+
+  // Cached notFound - ONLY for public resources (products, images)
+  // Do NOT use for cart, orders, user, or admin resources
+  notFoundCached: (resource = 'Resource') => 
+    new ApiError('NOT_FOUND', `${resource} not found`, 404, undefined, PUBLIC_404_CACHE_HEADERS),
 
   validation: (message: string, details?: Record<string, string[]>) =>
     new ApiError('VALIDATION_ERROR', message, 400, details),

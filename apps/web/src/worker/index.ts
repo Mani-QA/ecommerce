@@ -9,7 +9,6 @@
  * - Auth/Cart/Orders: No caching (dynamic content)
  */
 import { Hono } from 'hono';
-import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { timing } from 'hono/timing';
 

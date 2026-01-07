@@ -6,7 +6,7 @@ Built with modern technologies: React, Hono, and Cloudflare Workers with Static 
 
 ## 🚀 Live Demo
 
-**URL**: https://qademo.www5.workers.dev
+**URL**: https://qademo.com
 
 ### Test Accounts
 
@@ -44,98 +44,6 @@ QADemo is purpose-built for QA engineers and developers learning test automation
 | **Admin Features** | Dashboard stats, product CRUD, order management, stock updates |
 | **Responsive Design** | Mobile menu, breakpoint testing, touch interactions |
 | **Error Handling** | Network errors, validation errors, edge cases |
-
-### 🔍 Recommended Locator Strategies
-
-```javascript
-// By Role (Playwright recommended)
-page.getByRole('button', { name: 'Sign In' })
-page.getByRole('link', { name: 'Products' })
-page.getByRole('heading', { name: 'My Orders' })
-
-// By Label
-page.getByLabel('Email')
-page.getByLabel('Password')
-
-// By Placeholder
-page.getByPlaceholder('4242 4242 4242 4242')
-
-// By Text
-page.getByText('Add to Cart')
-page.getByText('In Cart')
-
-// By Test ID (if needed)
-page.locator('[data-testid="product-card"]')
-```
-
-### 📝 Sample Playwright Test
-
-```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('Login Flow', () => {
-  test('should login with standard user', async ({ page }) => {
-    await page.goto('https://qademo.www5.workers.dev/login');
-    
-    await page.getByLabel('Username').fill('standard_user');
-    await page.getByLabel('Password').fill('standard123');
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    
-    await expect(page.getByText('standard_user')).toBeVisible();
-  });
-
-  test('should show error for locked user', async ({ page }) => {
-    await page.goto('https://qademo.www5.workers.dev/login');
-    
-    await page.getByLabel('Username').fill('locked_user');
-    await page.getByLabel('Password').fill('locked123');
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    
-    await expect(page.getByText('Account is locked')).toBeVisible();
-  });
-});
-
-test.describe('Shopping Cart', () => {
-  test('should add product to cart', async ({ page }) => {
-    await page.goto('https://qademo.www5.workers.dev/catalog');
-    
-    // Add first product
-    await page.getByRole('button', { name: 'Add' }).first().click();
-    
-    // Verify button changes to "In Cart"
-    await expect(page.getByRole('button', { name: 'In Cart' }).first()).toBeVisible();
-    
-    // Verify cart badge shows 1
-    await expect(page.locator('.bg-brand-500').filter({ hasText: '1' })).toBeVisible();
-  });
-});
-
-test.describe('Checkout Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Login first
-    await page.goto('https://qademo.www5.workers.dev/login');
-    await page.getByLabel('Username').fill('standard_user');
-    await page.getByLabel('Password').fill('standard123');
-    await page.getByRole('button', { name: 'Sign In' }).click();
-  });
-
-  test('should complete checkout', async ({ page }) => {
-    // Add to cart
-    await page.goto('https://qademo.www5.workers.dev/catalog');
-    await page.getByRole('button', { name: 'Add' }).first().click();
-    
-    // Go to cart
-    await page.goto('https://qademo.www5.workers.dev/cart');
-    await page.getByRole('link', { name: 'Proceed to Checkout' }).click();
-    
-    // Checkout form is pre-filled with test data
-    await page.getByRole('button', { name: /Place Order/ }).click();
-    
-    // Verify order confirmation
-    await expect(page.getByText('Order Confirmed!')).toBeVisible();
-  });
-});
-```
 
 ---
 
@@ -199,7 +107,6 @@ QADemo.com/
 │       │       ├── middleware/   # Auth, caching, error handling
 │       │       ├── services/     # Business logic (password hashing)
 │       │       └── types/        # TypeScript types & DB bindings
-│       ├── e2e/                  # Playwright E2E tests
 │       ├── dist/                 # Built static assets (Vite output)
 │       └── wrangler.toml         # Cloudflare Workers configuration
 ├── packages/
@@ -246,8 +153,6 @@ QADemo.com/
 | pnpm | Fast, disk-efficient package manager |
 | Turborepo | Monorepo build system with caching |
 | Wrangler | Cloudflare CLI for dev and deployment |
-| Playwright | E2E testing framework |
-| Vitest | Unit testing framework |
 | ESLint | Code linting |
 
 ---
@@ -443,24 +348,6 @@ pnpm run deploy
 | **R2 for Images** | S3-compatible, no egress fees, global distribution |
 | **Zustand for State** | Minimal bundle size, simple API, persistence support |
 | **React Query** | Automatic caching, background refetching, optimistic updates |
-
----
-
-## 🧪 Running Tests
-
-```bash
-# Run unit tests
-pnpm run test
-
-# Run E2E tests with Playwright
-pnpm run test:e2e
-
-# Run E2E tests in headed mode (watch browser)
-pnpm run test:e2e -- --headed
-
-# Run specific test file
-pnpm run test:e2e -- tests/login.spec.ts
-```
 
 ---
 

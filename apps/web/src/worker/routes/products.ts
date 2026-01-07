@@ -17,11 +17,11 @@ const productRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 productRoutes.get('/', async (c) => {
   const db = c.env.DB;
 
-  const result = await db
+  const { results } = await db
     .prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY name')
     .all<ProductRow>();
 
-  const products = result.results.map((row) => {
+  const products = (results as ProductRow[]).map((row) => {
     const product = productRowToProduct(row);
     // Add image URL if image exists
     if (product.imageKey) {
@@ -63,9 +63,8 @@ productRoutes.get('/:slug', async (c) => {
     .first<ProductRow>();
 
   if (!product) {
-    // Cache 404 for non-existent products for 24 hours
-    c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
-    throw errors.notFound('Product');
+    // Cache 404 for non-existent products (public resource)
+    throw errors.notFoundCached('Product');
   }
 
   const result = productRowToProduct(product);
@@ -102,9 +101,8 @@ productRoutes.get('/id/:id', async (c) => {
     .first<ProductRow>();
 
   if (!product) {
-    // Cache 404 for non-existent products for 24 hours
-    c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
-    throw errors.notFound('Product');
+    // Cache 404 for non-existent products (public resource)
+    throw errors.notFoundCached('Product');
   }
 
   const result = productRowToProduct(product);
@@ -300,4 +298,3 @@ productRoutes.delete('/:id', adminMiddleware(), async (c) => {
 });
 
 export { productRoutes };
-
