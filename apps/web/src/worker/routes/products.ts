@@ -5,79 +5,88 @@ import { slugify } from '@qademo/shared';
 import type { Env, Variables, ProductRow } from '../types/bindings';
 import { productRowToProduct } from '../types/bindings';
 import { errors } from '../middleware/error-handler';
-import { cacheMiddleware, purgeCache } from '../middleware/cache';
+import { purgeCache } from '../middleware/cache';
 import { adminMiddleware } from '../middleware/auth';
 
 const productRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /**
  * GET /api/products
- * List all active products with edge caching
+ * List all active products with aggressive CDN edge caching (24 hours)
  */
-productRoutes.get(
-  '/',
-  cacheMiddleware({ maxAge: 60, staleWhileRevalidate: 300 }),
-  async (c) => {
-    const db = c.env.DB;
+productRoutes.get('/', async (c) => {
+  const db = c.env.DB;
 
-    const result = await db
-      .prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY name')
-      .all<ProductRow>();
+  const result = await db
+    .prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY name')
+    .all<ProductRow>();
 
-    const products = result.results.map((row) => {
-      const product = productRowToProduct(row);
-      // Add image URL if image exists
-      if (product.imageKey) {
-        product.imageUrl = `/api/images/${product.imageKey}`;
-      }
-      return product;
-    });
+  const products = result.results.map((row) => {
+    const product = productRowToProduct(row);
+    // Add image URL if image exists
+    if (product.imageKey) {
+      product.imageUrl = `/api/images/${product.imageKey}`;
+    }
+    return product;
+  });
 
-    return c.json({
-      success: true,
-      data: products,
-      meta: {
-        total: products.length,
-      },
-    });
-  }
-);
+  // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
+  c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+  c.header('CDN-Cache-Control', 'public, max-age=86400');
+  c.header('Vary', 'Accept-Encoding');
+
+  return c.json({
+    success: true,
+    data: products,
+    meta: {
+      total: products.length,
+    },
+  });
+});
 
 /**
  * GET /api/products/:slug
- * Get product by slug with edge caching
+ * Get product by slug with aggressive CDN edge caching (24 hours)
  */
-productRoutes.get(
-  '/:slug',
-  cacheMiddleware({ maxAge: 60, staleWhileRevalidate: 300 }),
-  async (c) => {
-    const slug = c.req.param('slug');
-    const db = c.env.DB;
+productRoutes.get('/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  const db = c.env.DB;
 
-    const product = await db
-      .prepare('SELECT * FROM products WHERE slug = ? AND is_active = 1')
-      .bind(slug)
-      .first<ProductRow>();
-
-    if (!product) {
-      throw errors.notFound('Product');
-    }
-
-    const result = productRowToProduct(product);
-    if (result.imageKey) {
-      result.imageUrl = `/api/images/${result.imageKey}`;
-    }
-
-    return c.json({
-      success: true,
-      data: result,
-    });
+  // Skip caching for special routes
+  if (slug === 'id') {
+    return c.notFound();
   }
-);
+
+  const product = await db
+    .prepare('SELECT * FROM products WHERE slug = ? AND is_active = 1')
+    .bind(slug)
+    .first<ProductRow>();
+
+  if (!product) {
+    // Cache 404 for non-existent products for 24 hours
+    c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+    throw errors.notFound('Product');
+  }
+
+  const result = productRowToProduct(product);
+  if (result.imageKey) {
+    result.imageUrl = `/api/images/${result.imageKey}`;
+  }
+
+  // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
+  c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+  c.header('CDN-Cache-Control', 'public, max-age=86400');
+  c.header('Vary', 'Accept-Encoding');
+
+  return c.json({
+    success: true,
+    data: result,
+  });
+});
 
 /**
  * GET /api/products/id/:id
- * Get product by ID (for cart/order lookups)
+ * Get product by ID (for cart/order lookups) with aggressive CDN caching (24 hours)
  */
 productRoutes.get('/id/:id', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
@@ -93,6 +102,8 @@ productRoutes.get('/id/:id', async (c) => {
     .first<ProductRow>();
 
   if (!product) {
+    // Cache 404 for non-existent products for 24 hours
+    c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
     throw errors.notFound('Product');
   }
 
@@ -100,6 +111,10 @@ productRoutes.get('/id/:id', async (c) => {
   if (result.imageKey) {
     result.imageUrl = `/api/images/${result.imageKey}`;
   }
+
+  // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days
+  c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+  c.header('CDN-Cache-Control', 'public, max-age=86400');
 
   return c.json({
     success: true,

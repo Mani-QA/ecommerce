@@ -11,7 +11,8 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
  * GET /api/images/*
- * Serve images from R2 with aggressive caching
+ * Serve images from R2 with aggressive CDN edge caching
+ * Images are cached at the edge for 1 year (immutable)
  */
 imageRoutes.get('/*', async (c) => {
   const key = c.req.path.replace('/api/images/', '');
@@ -24,8 +25,14 @@ imageRoutes.get('/*', async (c) => {
   const object = await bucket.get(key);
 
   if (!object) {
-    // Return placeholder image or 404
-    throw errors.notFound('Image');
+    // Cache 404 for missing images at CDN edge for 30 days (aggressive)
+    return new Response(null, {
+      status: 404,
+      headers: {
+        'Cache-Control': 'public, s-maxage=2592000, stale-while-revalidate=2592000, immutable',
+        'CDN-Cache-Control': 'public, max-age=2592000',
+      },
+    });
   }
 
   const headers = new Headers();
@@ -34,20 +41,32 @@ imageRoutes.get('/*', async (c) => {
   const contentType = object.httpMetadata?.contentType || inferContentType(key);
   headers.set('Content-Type', contentType);
   
-  // Aggressive caching for images - 1 year, immutable
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  // Aggressive CDN edge caching for images - 1 year, immutable
+  // s-maxage is for CDN/edge caching (Cloudflare will cache this)
+  // max-age is for browser caching
+  headers.set('Cache-Control', 'public, s-maxage=31536000, max-age=31536000, immutable');
+  headers.set('CDN-Cache-Control', 'public, max-age=31536000, immutable');
   
   // ETag for conditional requests
   headers.set('ETag', object.httpEtag);
   
-  // CORS headers for cross-origin image requests (for same-origin, still good to have)
+  // CORS headers for cross-origin image requests
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
   
-  // Check if client has cached version
+  // Vary header for proper caching
+  headers.set('Vary', 'Accept-Encoding');
+  
+  // Check if client has cached version (304 Not Modified)
   const ifNoneMatch = c.req.header('If-None-Match');
   if (ifNoneMatch === object.httpEtag) {
-    return new Response(null, { status: 304, headers });
+    return new Response(null, { 
+      status: 304, 
+      headers: {
+        'Cache-Control': 'public, s-maxage=31536000, max-age=31536000, immutable',
+        'ETag': object.httpEtag,
+      },
+    });
   }
 
   return new Response(object.body, {
