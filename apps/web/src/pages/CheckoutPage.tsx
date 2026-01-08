@@ -57,31 +57,41 @@ export default function CheckoutPage() {
 
   // Handle card number input with formatting
   const handleCardNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     const formatted = formatCardNumber(e.target.value);
-    setValue('cardNumber', formatted, { shouldValidate: true });
+    // Only update if value actually changed to prevent unnecessary re-renders
+    if (formatted !== e.target.value) {
+      setValue('cardNumber', formatted, { shouldValidate: false, shouldDirty: true });
+    }
   };
 
   // Handle expiry date input with auto-formatting
   const handleExpiryChange = (e: ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     const formatted = formatExpiryDate(e.target.value);
-    setValue('expiry', formatted, { shouldValidate: true });
+    if (formatted !== e.target.value) {
+      setValue('expiry', formatted, { shouldValidate: false, shouldDirty: true });
+    }
   };
 
   // Handle CVV input - numbers only
   const handleCVVChange = (e: ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     const formatted = formatCVV(e.target.value);
-    setValue('cvv', formatted, { shouldValidate: true });
+    if (formatted !== e.target.value) {
+      setValue('cvv', formatted, { shouldValidate: false, shouldDirty: true });
+    }
   };
 
   // Redirect if cart is empty
   if (items.length === 0) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-[60vh] flex items-center justify-center" data-testid="checkout-page">
+        <div className="text-center" data-testid="checkout-empty-cart">
           <h1 className="text-2xl font-bold text-slate-900">Your cart is empty</h1>
           <p className="mt-2 text-slate-600">Add items to your cart before checkout.</p>
           <Link to="/catalog" className="mt-6 inline-block">
-            <Button>Continue Shopping</Button>
+            <Button data-testid="checkout-continue-shopping-button">Continue Shopping</Button>
           </Link>
         </div>
       </div>
@@ -120,13 +130,15 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen py-12">
+    <div className="min-h-screen py-12" data-testid="checkout-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           to="/cart"
           className="inline-flex items-center text-sm text-slate-600 hover:text-brand-600 mb-8"
+          data-testid="back-to-cart-link"
+          aria-label="Back to cart"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
           Back to Cart
         </Link>
 
@@ -136,24 +148,29 @@ export default function CheckoutPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            <h1 className="text-3xl font-bold text-slate-900 mb-8">Checkout</h1>
+            <h1 className="text-3xl font-bold text-slate-900 mb-8" data-testid="checkout-heading">Checkout</h1>
 
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-red-600">{error}</p>
+              <div 
+                className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3" 
+                data-testid="checkout-error"
+                role="alert"
+                aria-live="polite"
+              >
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <p className="text-red-600" data-testid="checkout-error-message">{error}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8" data-testid="checkout-form" role="form" aria-label="Checkout form">
               {/* Shipping Information */}
-              <Card>
+              <Card data-testid="shipping-section">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-brand-600" />
+                      <Truck className="w-5 h-5 text-brand-600" aria-hidden="true" />
                     </div>
-                    <h2 className="text-xl font-bold text-slate-900">Shipping Information</h2>
+                    <h2 className="text-xl font-bold text-slate-900" data-testid="shipping-heading">Shipping Information</h2>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -162,38 +179,48 @@ export default function CheckoutPage() {
                       label="First Name"
                       {...register('firstName', { required: 'First name is required' })}
                       error={errors.firstName?.message}
+                      data-testid="checkout-first-name"
+                      aria-label="First name"
+                      autoComplete="given-name"
                     />
                     <Input
                       label="Last Name"
                       {...register('lastName', { required: 'Last name is required' })}
                       error={errors.lastName?.message}
+                      data-testid="checkout-last-name"
+                      aria-label="Last name"
+                      autoComplete="family-name"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-2" htmlFor="address">
                       Shipping Address
                     </label>
                     <textarea
+                      id="address"
                       {...register('address', { required: 'Address is required' })}
                       rows={3}
                       className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                       placeholder="Enter your full address"
+                      data-testid="checkout-address"
+                      aria-label="Shipping address"
+                      autoComplete="street-address"
                     />
                     {errors.address && (
-                      <p className="mt-1.5 text-sm text-red-600">{errors.address.message}</p>
+                      <p className="mt-1.5 text-sm text-red-600" role="alert">{errors.address.message}</p>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
               {/* Payment Information */}
-              <Card>
+              <Card data-testid="payment-section">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-brand-600" />
+                      <CreditCard className="w-5 h-5 text-brand-600" aria-hidden="true" />
                     </div>
-                    <h2 className="text-xl font-bold text-slate-900">Payment Information</h2>
+                    <h2 className="text-xl font-bold text-slate-900" data-testid="payment-heading">Payment Information</h2>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -211,6 +238,9 @@ export default function CheckoutPage() {
                     error={errors.cardNumber?.message}
                     maxLength={19}
                     inputMode="numeric"
+                    data-testid="checkout-card-number"
+                    aria-label="Card number"
+                    autoComplete="cc-number"
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Input
@@ -227,6 +257,9 @@ export default function CheckoutPage() {
                       error={errors.expiry?.message}
                       maxLength={5}
                       inputMode="numeric"
+                      data-testid="checkout-expiry"
+                      aria-label="Card expiry date"
+                      autoComplete="cc-exp"
                     />
                     <Input
                       label="CVV"
@@ -242,12 +275,18 @@ export default function CheckoutPage() {
                       error={errors.cvv?.message}
                       maxLength={4}
                       inputMode="numeric"
+                      data-testid="checkout-cvv"
+                      aria-label="Card CVV"
+                      autoComplete="cc-csc"
                     />
                   </div>
                   <Input
                     label="Name on Card"
                     {...register('nameOnCard', { required: 'Name is required' })}
                     error={errors.nameOnCard?.message}
+                    data-testid="checkout-cardholder-name"
+                    aria-label="Name on card"
+                    autoComplete="cc-name"
                   />
                 </CardContent>
               </Card>
@@ -258,8 +297,10 @@ export default function CheckoutPage() {
                 className="w-full"
                 isLoading={isSubmitting}
                 disabled={isSubmitting}
+                data-testid="place-order-button"
+                aria-label={`Place order for ${formatPrice(totalAmount())}`}
               >
-                Place Order - {formatPrice(totalAmount())}
+                {isSubmitting ? 'Processing...' : `Place Order - ${formatPrice(totalAmount())}`}
               </Button>
             </form>
           </motion.div>

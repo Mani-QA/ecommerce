@@ -14,9 +14,9 @@ export default function HomePage() {
   const featuredProducts = products?.slice(0, 6) || [];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" data-testid="home-page">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden" data-testid="hero-section">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-gradient-to-br from-brand-50 via-white to-accent-50/30" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(20,184,158,0.1)_0%,transparent_50%)]" />
@@ -28,31 +28,31 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <span className="inline-flex items-center px-4 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium mb-6">
-                <Zap className="w-4 h-4 mr-2" />
+              <span className="inline-flex items-center px-4 py-1.5 bg-brand-100 text-brand-700 rounded-full text-sm font-medium mb-6" data-testid="hero-badge">
+                <Zap className="w-4 h-4 mr-2" aria-hidden="true" />
                 E-Commerce Automated Testing Platform
               </span>
               
-              <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 leading-tight">
+              <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 leading-tight" data-testid="hero-heading">
               Your Playground for 
                 <span className="bg-gradient-to-r from-brand-600 to-accent-500 bg-clip-text text-transparent">
                   {' '}Automated Testing
                 </span>
               </h1>
               
-              <p className="mt-6 text-xl text-slate-600 leading-relaxed">
+              <p className="mt-6 text-xl text-slate-600 leading-relaxed" data-testid="hero-description">
               A realistic e-commerce environment designed specifically for practicing automated testing. Execute end-to-end flows—from product discovery to checkout—in a captcha-free environment.
               </p>
               
-              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4" data-testid="hero-actions">
                 <Link to="/catalog">
-                  <Button size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
+                  <Button size="lg" rightIcon={<ArrowRight className="w-5 h-5" />} data-testid="browse-products-button">
                     Browse Products
                   </Button>
                 </Link>
                 {!isAuthenticated && (
                   <Link to="/login">
-                    <Button variant="secondary" size="lg">
+                    <Button variant="secondary" size="lg" data-testid="hero-signin-button">
                       Sign In
                     </Button>
                   </Link>

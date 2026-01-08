@@ -8,8 +8,8 @@ import type {
   CreateOrderInput,
 } from '@qademo/shared';
 
-// API is now same-origin (Pages Functions), so always use relative path
-const API_BASE = '/api';
+// API Configuration - externalized for test automation
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
  * Get the full URL for an image
@@ -30,11 +30,14 @@ export function getImageUrl(imageUrl: string | undefined | null): string {
 }
 
 // Generate a session ID for cart management
+// Externalized storage key for test automation
+const SESSION_STORAGE_KEY = import.meta.env.VITE_SESSION_STORAGE_KEY || 'session_id';
+
 function getSessionId(): string {
-  let sessionId = localStorage.getItem('session_id');
+  let sessionId = localStorage.getItem(SESSION_STORAGE_KEY);
   if (!sessionId) {
     sessionId = crypto.randomUUID();
-    localStorage.setItem('session_id', sessionId);
+    localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
   }
   return sessionId;
 }

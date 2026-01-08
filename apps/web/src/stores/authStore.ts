@@ -89,11 +89,12 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
     }),
     {
-      name: 'auth-storage',
+      name: import.meta.env.VITE_AUTH_STORAGE_KEY || 'auth-storage',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      skipHydration: false, // Ensure state hydration happens correctly
     }
   )
 );

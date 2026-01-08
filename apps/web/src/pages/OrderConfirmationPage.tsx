@@ -14,17 +14,17 @@ export default function OrderConfirmationPage() {
   const { data: order, isLoading, error } = useOrder(orderId);
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner data-testid="order-confirmation-loading" />;
   }
 
   if (error || !order) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-[60vh] flex items-center justify-center" data-testid="order-confirmation-page">
+        <div className="text-center" data-testid="order-not-found">
           <h1 className="text-2xl font-bold text-slate-900">Order Not Found</h1>
           <p className="mt-2 text-slate-600">The order you're looking for doesn't exist.</p>
           <Link to="/catalog" className="mt-6 inline-block">
-            <Button>Continue Shopping</Button>
+            <Button data-testid="order-not-found-continue-shopping">Continue Shopping</Button>
           </Link>
         </div>
       </div>
@@ -40,22 +40,23 @@ export default function OrderConfirmationPage() {
   } as const;
 
   return (
-    <div className="min-h-screen py-12">
+    <div className="min-h-screen py-12" data-testid="order-confirmation-page">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Success Header */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center mb-12"
+          data-testid="order-success-header"
         >
           <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+            <CheckCircle className="w-10 h-10 text-green-600" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Order Confirmed!</h1>
+          <h1 className="text-3xl font-bold text-slate-900" data-testid="order-confirmation-heading">Order Confirmed!</h1>
           <p className="mt-2 text-lg text-slate-600">
             Thank you for your order. We'll send you updates soon.
           </p>
-          <p className="mt-2 text-brand-600 font-medium">Order #{order.id}</p>
+          <p className="mt-2 text-brand-600 font-medium" data-testid="order-confirmation-number">Order #{order.id}</p>
         </motion.div>
 
         <div className="space-y-6">
@@ -65,19 +66,19 @@ export default function OrderConfirmationPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card>
+            <Card data-testid="order-status-card">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center">
-                      <Package className="w-6 h-6 text-brand-600" />
+                      <Package className="w-6 h-6 text-brand-600" aria-hidden="true" />
                     </div>
                     <div>
                       <p className="font-semibold text-slate-900">Order Status</p>
-                      <p className="text-sm text-slate-500">{formatDate(order.createdAt)}</p>
+                      <p className="text-sm text-slate-500" data-testid="order-confirmation-date">{formatDate(order.createdAt)}</p>
                     </div>
                   </div>
-                  <Badge variant={statusVariant[order.status as keyof typeof statusVariant] || 'default'}>
+                  <Badge variant={statusVariant[order.status as keyof typeof statusVariant] || 'default'} data-testid="order-confirmation-status">
                     {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                   </Badge>
                 </div>
@@ -91,18 +92,18 @@ export default function OrderConfirmationPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card>
+            <Card data-testid="order-shipping-card">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <Truck className="w-5 h-5 text-brand-600" />
+                  <Truck className="w-5 h-5 text-brand-600" aria-hidden="true" />
                   <h2 className="text-lg font-bold text-slate-900">Shipping Information</h2>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-slate-900" data-testid="order-shipping-name">
                   {order.shippingFirstName} {order.shippingLastName}
                 </p>
-                <p className="mt-1 text-slate-600 whitespace-pre-line">{order.shippingAddress}</p>
+                <p className="mt-1 text-slate-600 whitespace-pre-line" data-testid="order-shipping-address">{order.shippingAddress}</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -113,9 +114,9 @@ export default function OrderConfirmationPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card>
+            <Card data-testid="order-items-card">
               <CardHeader>
-                <h2 className="text-lg font-bold text-slate-900">Order Items</h2>
+                <h2 className="text-lg font-bold text-slate-900" data-testid="order-items-heading">Order Items</h2>
               </CardHeader>
               <CardContent>
                 <div className="divide-y divide-slate-100">

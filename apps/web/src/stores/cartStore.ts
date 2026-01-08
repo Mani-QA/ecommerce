@@ -27,7 +27,7 @@ interface CartState {
   isInCart: (productId: number) => boolean;
 }
 
-export const useCartStore = create<CartState>()(
+const cartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
@@ -193,11 +193,26 @@ export const useCartStore = create<CartState>()(
       },
     }),
     {
-      name: 'cart-storage',
+      name: import.meta.env.VITE_CART_STORAGE_KEY || 'cart-storage',
       partialize: (state) => ({
         items: state.items,
       }),
+      skipHydration: false, // Ensure state hydration happens correctly
+      // Force immediate hydration on store creation
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          console.log('[Cart Store] Hydrated with', state.items.length, 'items');
+        }
+      },
     }
   )
 );
 
+// Export the store
+export const useCartStore = cartStore;
+
+// Ensure hydration happens immediately when the module loads
+if (typeof window !== 'undefined') {
+  // Force hydration from localStorage
+  cartStore.persist.rehydrate();
+}
