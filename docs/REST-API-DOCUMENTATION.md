@@ -1218,26 +1218,40 @@ test('API: Complete order flow', async ({ request }) => {
 
 ## Postman Collection
 
-Import the pre-configured collection for instant API testing:
+Import the pre-configured collection for instant API testing with **automated error validation tests**:
 
 **File:** `docs/QADemo-Postman-Collection.json`
+
+### Features
+- ✅ **8 Error Validation Tests** - Automatically verify all error scenarios
+- ✅ **10 Success Scenario Tests** - Test normal operations
+- ✅ **34+ Automated Assertions** - HTTP status, error codes, messages
+- ✅ **Newman Compatible** - Run in CI/CD pipelines
+- ✅ **Pre-configured Variables** - Basic Auth tokens, endpoints
 
 ### Quick Import
 1. Open Postman
 2. Click **Import** button
 3. Select `docs/QADemo-Postman-Collection.json`
-4. Collection includes:
-   - All endpoints pre-configured
-   - Environment variables for auth tokens
-   - Test scenarios with assertions
-   - Both Bearer token and Basic auth examples
+4. Run **"Error Validation Tests"** folder to verify all error handling
 
-### Environment Variables Included
-- `baseUrl`: `https://qademo.com/api`
-- `userBasicAuth`: Pre-encoded standard_user token
-- `adminBasicAuth`: Pre-encoded admin token
-- `accessToken`: Auto-populated after login
-- `sessionId`: Sample session UUID
+### Error Tests Included
+1. Missing Authentication (401)
+2. Invalid Credentials (401)
+3. Admin Access Required (403)
+4. Product Not Found (404)
+5. Empty Cart Checkout (400)
+6. Missing Required Fields (400)
+7. Invalid Stock Update by Non-Admin (403)
+8. Invalid Order Status Update by Non-Admin (403)
+
+### Example Test Output
+```
+✓ Status is 403 Forbidden
+✓ Error code is FORBIDDEN with admin message
+```
+
+**See [Postman Collection Guide](./POSTMAN-COLLECTION-GUIDE.md) for detailed usage instructions.**
 
 ---
 
@@ -1273,6 +1287,7 @@ Import the pre-configured collection for instant API testing:
 ## Support
 
 For issues or questions about the REST API:
+- **[Error Validations Reference](./API-ERROR-VALIDATION.md)** - Complete guide to all error scenarios and validations
 - See [FRD-QADemo.md](./FRD-QADemo.md) for functional specifications
 - See [AUTOMATION-IMPROVEMENTS.md](./AUTOMATION-IMPROVEMENTS.md) for UI automation guidelines
 

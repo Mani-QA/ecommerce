@@ -1,9 +1,9 @@
 {
   "info": {
-    "name": "QADemo REST API",
-    "description": "Complete API collection for QADemo e-commerce platform automation testing",
+    "name": "QADemo REST API with Error Validations",
+    "description": "Complete API collection for QADemo e-commerce platform automation testing with comprehensive error validation tests",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "variable": [
     {
@@ -22,6 +22,12 @@
       "type": "string"
     },
     {
+      "key": "invalidBasicAuth",
+      "value": "Basic c3RhbmRhcmRfdXNlcjp3cm9uZ3Bhc3N3b3Jk",
+      "type": "string",
+      "description": "standard_user:wrongpassword"
+    },
+    {
       "key": "accessToken",
       "value": "",
       "type": "string"
@@ -30,9 +36,342 @@
       "key": "sessionId",
       "value": "550e8400-e29b-41d4-a716-446655440000",
       "type": "string"
+    },
+    {
+      "key": "testProductId",
+      "value": "1",
+      "type": "string"
     }
   ],
   "item": [
+    {
+      "name": "Error Validation Tests",
+      "description": "Comprehensive error validation test suite",
+      "item": [
+        {
+          "name": "1. Missing Authentication",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error code is UNAUTHORIZED', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('UNAUTHORIZED');",
+                  "    pm.expect(response.error.message).to.include('Missing authentication');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "2. Invalid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error code is UNAUTHORIZED', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('UNAUTHORIZED');",
+                  "    pm.expect(response.error.message).to.include('Invalid credentials');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{invalidBasicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "3. Admin Access Required",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403 Forbidden', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Error code is FORBIDDEN with admin message', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('FORBIDDEN');",
+                  "    pm.expect(response.error.message).to.include('Admin access required');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}",
+                "description": "Standard user trying to access admin endpoint"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "orders"]
+            }
+          }
+        },
+        {
+          "name": "4. Product Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404 Not Found', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error code is NOT_FOUND', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('NOT_FOUND');",
+                  "    pm.expect(response.error.message).to.include('Product not found');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/id/99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "id", "99999"]
+            }
+          }
+        },
+        {
+          "name": "5. Empty Cart Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error code is CART_EMPTY', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('CART_EMPTY');",
+                  "    pm.expect(response.error.message).to.include('Cart is empty');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}"
+              },
+              {
+                "key": "X-Session-ID",
+                "value": "empty-cart-session-id"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"address\": \"123 Test St\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\",\n    \"expiry\": \"12/26\",\n    \"cvv\": \"123\",\n    \"nameOnCard\": \"John Doe\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "6. Missing Required Fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error code is VALIDATION_ERROR with details', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('VALIDATION_ERROR');",
+                  "    pm.expect(response.error.details).to.be.an('object');",
+                  "    pm.expect(response.error.message).to.include('Validation failed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}"
+              },
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "7. Invalid Stock Update (Non-Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403 Forbidden', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Admin access required for stock update', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('FORBIDDEN');",
+                  "    pm.expect(response.error.message).to.include('Admin access required');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}",
+                "description": "Standard user cannot update stock"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{testProductId}}/stock",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "products", "{{testProductId}}", "stock"]
+            }
+          }
+        },
+        {
+          "name": "8. Invalid Order Status Update (Non-Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403 Forbidden', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Admin access required for order status update', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.false;",
+                  "    pm.expect(response.error.code).to.equal('FORBIDDEN');",
+                  "    pm.expect(response.error.message).to.include('Admin access required');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}",
+                "description": "Standard user cannot update order status"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"shipped\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/orders/1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "orders", "1", "status"]
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "Authentication",
       "item": [
@@ -43,13 +382,17 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "if (pm.response.code === 200) {",
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Login successful with access token', () => {",
                   "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.accessToken).to.be.a('string');",
+                  "    pm.expect(response.data.user.username).to.equal('standard_user');",
                   "    pm.collectionVariables.set('accessToken', response.data.accessToken);",
-                  "    pm.test('Login successful', () => {",
-                  "        pm.expect(response.success).to.be.true;",
-                  "    });",
-                  "}"
+                  "});"
                 ]
               }
             }
@@ -80,14 +423,16 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "if (pm.response.code === 200) {",
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Admin login successful', () => {",
                   "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.user.userType).to.equal('admin');",
                   "    pm.collectionVariables.set('accessToken', response.data.accessToken);",
-                  "    pm.test('Admin login successful', () => {",
-                  "        pm.expect(response.success).to.be.true;",
-                  "        pm.expect(response.data.user.userType).to.equal('admin');",
-                  "    });",
-                  "}"
+                  "});"
                 ]
               }
             }
@@ -118,6 +463,25 @@
       "item": [
         {
           "name": "Get All Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Products list returned', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "    pm.expect(response.meta.total).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -130,25 +494,32 @@
         },
         {
           "name": "Get Product by ID (Check Availability)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/products/id/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["products", "id", "1"]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Product has stock information', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.stock).to.be.a('number');",
+                  "    pm.expect(response.data.isActive).to.be.a('boolean');",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        {
-          "name": "Get Product by Slug",
+          ],
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/products/wireless-headphones",
+              "raw": "{{baseUrl}}/products/id/{{testProductId}}",
               "host": ["{{baseUrl}}"],
-              "path": ["products", "wireless-headphones"]
+              "path": ["products", "id", "{{testProductId}}"]
             }
           }
         }
@@ -158,7 +529,25 @@
       "name": "Orders (User)",
       "item": [
         {
-          "name": "Get User Orders (Basic Auth)",
+          "name": "Get User Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Orders list returned', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -167,74 +556,6 @@
                 "value": "{{userBasicAuth}}"
               }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders"]
-            }
-          }
-        },
-        {
-          "name": "Get User Orders (Bearer Token)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{accessToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders"]
-            }
-          }
-        },
-        {
-          "name": "Get Order Details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "{{userBasicAuth}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/orders/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["orders", "1"]
-            }
-          }
-        },
-        {
-          "name": "Place Order (Checkout)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "{{userBasicAuth}}"
-              },
-              {
-                "key": "X-Session-ID",
-                "value": "{{sessionId}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"address\": \"123 Test St, City, State 12345\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\",\n    \"expiry\": \"12/26\",\n    \"cvv\": \"123\",\n    \"nameOnCard\": \"John Doe\"\n  }\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/orders",
               "host": ["{{baseUrl}}"],
@@ -249,6 +570,24 @@
       "item": [
         {
           "name": "Get All Products (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Admin can view all products', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -266,6 +605,24 @@
         },
         {
           "name": "Update Product Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Stock updated successfully', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.stock).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PATCH",
             "header": [
@@ -283,9 +640,9 @@
               "raw": "{\n  \"stock\": 100\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/admin/products/1/stock",
+              "raw": "{{baseUrl}}/admin/products/{{testProductId}}/stock",
               "host": ["{{baseUrl}}"],
-              "path": ["admin", "products", "1", "stock"]
+              "path": ["admin", "products", "{{testProductId}}", "stock"]
             }
           }
         }
@@ -296,6 +653,24 @@
       "item": [
         {
           "name": "Get All Orders (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Admin can view all orders', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -312,24 +687,25 @@
           }
         },
         {
-          "name": "Get Order Details (Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "{{adminBasicAuth}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/admin/orders/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "orders", "1"]
-            }
-          }
-        },
-        {
           "name": "Update Order Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Order status updated', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.status).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PATCH",
             "header": [
@@ -355,6 +731,26 @@
         },
         {
           "name": "Get Dashboard Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Dashboard stats returned', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.counts).to.be.an('object');",
+                  "    pm.expect(response.data.counts.products).to.be.a('number');",
+                  "    pm.expect(response.data.counts.orders).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -369,94 +765,6 @@
               "path": ["admin", "stats"]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "Test Scenarios",
-      "item": [
-        {
-          "name": "Scenario: Complete Order Flow",
-          "item": [
-            {
-              "name": "1. Login",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "const response = pm.response.json();",
-                      "pm.collectionVariables.set('accessToken', response.data.accessToken);"
-                    ]
-                  }
-                }
-              ],
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\"username\":\"standard_user\",\"password\":\"password123\"}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/auth/login",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["auth", "login"]
-                }
-              }
-            },
-            {
-              "name": "2. Check Product Availability",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "const response = pm.response.json();",
-                      "pm.test('Product is available', () => {",
-                      "    pm.expect(response.data.stock).to.be.above(0);",
-                      "    pm.expect(response.data.isActive).to.be.true;",
-                      "});"
-                    ]
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "url": {
-                  "raw": "{{baseUrl}}/products/id/1",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["products", "id", "1"]
-                }
-              }
-            },
-            {
-              "name": "3. Get User Orders",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    {
-                      "key": "token",
-                      "value": "{{accessToken}}",
-                      "type": "string"
-                    }
-                  ]
-                },
-                "method": "GET",
-                "url": {
-                  "raw": "{{baseUrl}}/orders",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["orders"]
-                }
-              }
-            }
-          ]
         }
       ]
     }

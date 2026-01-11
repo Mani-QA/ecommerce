@@ -1,0 +1,258 @@
+# QADemo Cursor Rules
+
+## Code Quality Standards
+
+### SonarQube Coding Practices
+- **No Code Duplication**: Extract common logic into reusable functions/helpers
+- **Complexity Management**: Keep cyclomatic complexity low (max 15 per function)
+- **Code Smells**: Avoid long functions (max 50 lines), nested conditionals (max 3 levels)
+- **Naming Conventions**: Use descriptive names for variables, functions, and types
+- **Error Handling**: Always handle errors explicitly, never use empty catch blocks
+- **Type Safety**: Leverage TypeScript's type system, avoid `any` type
+- **Dead Code**: Remove unused imports, variables, and functions
+
+### Accessibility (WCAG 2.1 AA)
+- **Semantic HTML**: Use proper HTML elements (`<button>`, `<nav>`, `<main>`, etc.)
+- **ARIA Labels**: Add `aria-label` or `aria-labelledby` to interactive elements
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+- **Focus Management**: Visible focus indicators, logical tab order
+- **Alt Text**: All images must have descriptive `alt` attributes
+- **Color Contrast**: Minimum 4.5:1 for normal text, 3:1 for large text
+- **Form Labels**: Every input must have associated `<label>` or `aria-label`
+- **Test IDs**: Add `data-testid` to interactive elements for automation
+
+### OWASP Security Guidelines
+- **Input Validation**: Validate and sanitize all user inputs (use Zod schemas)
+- **Authentication**: Use secure JWT tokens with proper expiration
+- **Authorization**: Always verify user permissions before allowing actions
+- **SQL Injection Prevention**: Use parameterized queries (D1 `.bind()` method)
+- **XSS Prevention**: Sanitize HTML output, use React's built-in XSS protection
+- **CSRF Protection**: Use same-origin policies, secure cookies
+- **Secrets Management**: Never hardcode secrets, use environment variables
+- **Rate Limiting**: Implement rate limiting for API endpoints (future enhancement)
+- **HTTPS Only**: All production traffic must use HTTPS
+- **Security Headers**: Set appropriate headers (CSP, X-Frame-Options, etc.)
+
+## Documentation Management
+
+### Update Over Create
+- **Priority**: Always update existing documentation instead of creating new files
+- **Check First**: Search for existing docs before creating new ones
+- **Consolidate**: Merge related documentation into single comprehensive files
+- **Avoid Redundancy**: Don't duplicate information across multiple docs
+
+### Version History
+- **Changelog**: Update `CHANGELOG.md` for all significant changes
+- **Version Numbers**: Follow Semantic Versioning (MAJOR.MINOR.PATCH)
+- **Release Notes**: Document breaking changes, new features, bug fixes
+- **Git Tags**: Tag releases in Git (e.g., `v1.0.0`, `v1.1.0`)
+
+### GitHub Releases
+- **Release Creation**: Create GitHub releases for each version
+- **Release Notes**: Include detailed changelog in release description
+- **Asset Attachment**: Attach relevant build artifacts if applicable
+- **Breaking Changes**: Clearly highlight breaking changes in release notes
+
+## Cloudflare Architecture
+
+### Single Worker Pattern
+- **Unified Worker**: Use ONE worker for both frontend and backend
+- **Hono Framework**: Use Hono for API routes (`/api/*`)
+- **Static Assets**: Serve frontend via Cloudflare Workers Static Assets
+- **Route Structure**:
+  ```
+  ├── /api/*          → Hono API handlers
+  └── /*              → Static frontend (React SPA)
+  ```
+- **Worker Config**: Configure in `wrangler.toml`:
+  ```toml
+  [assets]
+  directory = "dist"
+  binding = "ASSETS"
+  ```
+- **No Separate Workers**: Never create separate workers for frontend/backend
+
+### Cloudflare D1 Database Management
+- **Minimize Databases**: Use as few databases as possible (ideally 1)
+- **Single Database**: Keep all tables in one D1 database (`DB`)
+- **Table Organization**: Use prefixes or schemas within single database
+- **No Database Per Feature**: Don't create separate databases for each module
+- **Migration Strategy**: Use single migration system for all tables
+- **Example Structure**:
+  ```
+  Single D1 Database: "qademo-db"
+    ├── users
+    ├── products
+    ├── orders
+    ├── order_items
+    └── refresh_tokens
+  ```
+
+## Project-Specific Guidelines
+
+### File Structure
+```
+apps/web/
+├── src/
+│   ├── components/        # React components
+│   ├── pages/             # Route pages
+│   ├── stores/            # Zustand state management
+│   ├── lib/               # Utilities and helpers
+│   └── worker/            # Cloudflare Worker (API + Static Assets)
+│       ├── routes/        # API route handlers
+│       ├── middleware/    # Auth, error handling, caching
+│       ├── services/      # Business logic
+│       └── index.ts       # Main worker entry point
+├── dist/                  # Build output (static assets)
+└── wrangler.toml          # Worker configuration
+```
+
+### API Development
+- **Error Handling**: Use centralized error handler (`error-handler.ts`)
+- **Response Format**: Consistent JSON structure:
+  ```typescript
+  { success: true, data: {...}, meta: {...} }
+  { success: false, error: { code, message, details } }
+  ```
+- **Authentication**: Support both Bearer tokens and Basic Auth
+- **Middleware**: Use Hono middleware for auth, caching, errors
+- **Validation**: Use Zod schemas for request validation
+- **HTTP Status Codes**: Use appropriate codes (200, 400, 401, 403, 404, 500)
+
+### Frontend Development
+- **State Management**: Use Zustand with persist middleware
+- **Data Fetching**: Use React Query or SWR for API calls
+- **Routing**: React Router v6 with protected routes
+- **Styling**: Tailwind CSS with custom components
+- **Animations**: Framer Motion for smooth transitions
+- **Loading States**: Always show loading indicators with `data-testid`
+
+### Testing
+- **Playwright**: E2E tests for critical user flows
+- **Test Selectors**: Use `data-testid` attributes (never class/id for tests)
+- **API Tests**: Postman collection with automated assertions
+- **Error Scenarios**: Test all error cases (401, 403, 404, validation errors)
+- **Newman**: Run Postman tests in CI/CD pipeline
+
+### Performance
+- **CDN Caching**: Aggressive caching for static assets and public APIs
+- **Cache Headers**: Set appropriate `Cache-Control` headers
+- **Image Optimization**: Use R2 for images with proper caching
+- **Bundle Size**: Monitor and optimize bundle size
+- **Code Splitting**: Lazy load routes and components
+
+### Git Workflow
+- **Branch Strategy**: `main` for production, feature branches for development
+- **Commit Messages**: Follow Conventional Commits format
+  ```
+  feat: Add user authentication
+  fix: Resolve cart persistence issue
+  docs: Update API documentation
+  refactor: Extract auth helpers to reduce duplication
+  ```
+- **Pull Requests**: Required for all changes to `main`
+- **Code Review**: At least one approval before merging
+- **CI/CD**: Run tests and lints before merge
+
+## Common Patterns
+
+### Authentication Middleware
+```typescript
+// Support both Bearer and Basic Auth
+if (authHeader.startsWith('Basic ')) {
+  user = await verifyBasicAuth(authHeader, db, requireAdmin);
+} else {
+  user = await verifyBearerToken(authHeader, secret, requireAdmin);
+}
+```
+
+### Error Responses
+```typescript
+// Use centralized error creators
+throw errors.unauthorized('Invalid credentials');
+throw errors.forbidden('Admin access required');
+throw errors.notFound('Product');
+throw errors.outOfStock(productName);
+```
+
+### Data Validation
+```typescript
+// Use Zod for all input validation
+import { zValidator } from '@hono/zod-validator';
+app.post('/orders', zValidator('json', createOrderSchema), handler);
+```
+
+### React Components
+```typescript
+// Add data-testid for automation
+<button 
+  onClick={handleClick}
+  data-testid="submit-button"
+  aria-label="Submit form"
+>
+  Submit
+</button>
+```
+
+## Prohibited Practices
+
+### ❌ DO NOT
+- Create new documentation files without checking existing docs first
+- Use separate Cloudflare Workers for frontend and backend
+- Create multiple D1 databases for different features
+- Hardcode API URLs, secrets, or configuration values
+- Use `any` type in TypeScript without justification
+- Write duplicate code instead of extracting to helpers
+- Commit sensitive data (API keys, passwords, tokens)
+- Skip error handling (always handle errors explicitly)
+- Create complex nested conditionals (use early returns)
+- Write functions longer than 50 lines (extract smaller functions)
+- Use class/id selectors in tests (use `data-testid`)
+- Ignore accessibility (always add ARIA labels and keyboard support)
+
+## Priority Order
+
+When implementing features, follow this priority:
+1. **Security** - OWASP guidelines, input validation, auth checks
+2. **Accessibility** - Semantic HTML, ARIA labels, keyboard navigation
+3. **Error Handling** - Proper validation, clear error messages
+4. **Code Quality** - No duplication, low complexity, type safety
+5. **Testing** - Test IDs, error scenarios, automation support
+6. **Performance** - Caching, optimization, bundle size
+7. **Documentation** - Update existing docs, maintain changelog
+
+## Example Checklist for New Features
+
+Before committing, verify:
+- [ ] No code duplication (SonarQube compliant)
+- [ ] Input validation with Zod schemas (OWASP)
+- [ ] Authorization checks where needed (OWASP)
+- [ ] Proper error handling with consistent format
+- [ ] Semantic HTML and ARIA labels (Accessibility)
+- [ ] `data-testid` attributes for automation
+- [ ] TypeScript types (no `any` without reason)
+- [ ] Updated existing docs (not created new ones)
+- [ ] Single worker pattern followed
+- [ ] Single D1 database used
+- [ ] Commit message follows Conventional Commits
+- [ ] All tests pass (Playwright, Postman)
+
+## Maintenance
+
+### Regular Tasks
+- **Weekly**: Review and update documentation
+- **Per Release**: Update `CHANGELOG.md` and create GitHub release
+- **Monthly**: Review SonarQube metrics and fix issues
+- **Quarterly**: Update dependencies and security patches
+
+### Monitoring
+- **SonarCloud**: Check duplication, complexity, security issues
+- **Lighthouse**: Monitor accessibility and performance scores
+- **Bundle Size**: Keep under 500KB (gzipped)
+- **API Response Times**: < 200ms for cached, < 1s for dynamic
+
+---
+
+**Last Updated:** 2026-01-11  
+**Version:** 1.0  
+**Maintained By:** Development Team
