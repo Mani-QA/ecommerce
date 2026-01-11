@@ -27,23 +27,83 @@ QADemo is purpose-built for QA engineers and developers learning test automation
 - **No CAPTCHA** - Practice freely without solving puzzles
 - **No Rate Limiting** - Run tests as fast as you need
 - **Predictable Test Data** - Pre-seeded users and products
-- **Stable Selectors** - Consistent HTML structure for reliable locators
-- **Real API Backend** - Practice API testing alongside UI testing
-- **Multiple User Roles** - Test different permission levels
+- **Stable Selectors** - Consistent HTML structure for reliable locators with `data-testid`
+- **REST API** - Full API access for API automation and hybrid testing
+- **Multiple User Roles** - Test different permission levels (Customer & Admin)
 - **Real Payment Flow** - Simulated checkout with test card (`4242 4242 4242 4242`)
+- **State Persistence** - Cart and auth state survive page reloads
+- **No Re-render Issues** - Stable elements for reliable automation
 
 ### 🧪 Test Scenarios You Can Practice
 
 | Category | Scenarios |
 |----------|-----------|
-| **Authentication** | Login/logout, invalid credentials, locked account handling, session persistence |
-| **Product Browsing** | Search/filter products, view details, pagination, product images |
-| **Shopping Cart** | Add/remove items, update quantities, cart persistence, empty cart states |
-| **Checkout Flow** | Form validation, credit card input formatting, order placement |
-| **Order Management** | View order history, order details, order status tracking |
-| **Admin Features** | Dashboard stats, product CRUD, order management, stock updates |
+| **Authentication** | Login/logout, invalid credentials, locked account, session persistence, Basic Auth |
+| **Product Browsing** | Search/filter products, view details, check availability via API |
+| **Shopping Cart** | Add/remove items, update quantities, cart persistence across reloads |
+| **Checkout Flow** | Form validation, credit card formatting, order placement via UI & API |
+| **Order Management** | View order history, order details, order status tracking via API |
+| **Admin Features** | Dashboard stats, product CRUD, stock updates via API, order status management |
+| **API Testing** | REST API endpoints for products, orders, and admin operations |
+| **Hybrid Testing** | Combine UI and API testing (e.g., create order via UI, verify via API) |
 | **Responsive Design** | Mobile menu, breakpoint testing, touch interactions |
 | **Error Handling** | Network errors, validation errors, edge cases |
+
+---
+
+## 🔌 REST API for Automation Testing
+
+QADemo provides a comprehensive REST API for API-based automation testing. All endpoints support both **Bearer Token** and **Basic Authentication**.
+
+### Quick Example
+
+```bash
+# Get product availability
+curl https://qademo.com/api/products/id/1
+
+# Get user orders (with Basic Auth - no login needed!)
+curl https://qademo.com/api/orders \
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=="
+
+# Admin: Update product stock
+curl -X PATCH https://qademo.com/api/admin/products/1/stock \
+  -H "Authorization: Basic YWRtaW46YWRtaW4xMjM=" \
+  -H "Content-Type: application/json" \
+  -d '{"stock": 100}'
+```
+
+### Available Endpoints
+
+#### Public APIs (No Authentication)
+- `GET /api/products` - List all products with stock info
+- `GET /api/products/:slug` - Get product details
+- `GET /api/products/id/:id` - Check product availability
+- `POST /api/auth/login` - Login and get access token
+
+#### User APIs (Authentication Required)
+- `GET /api/orders` - Get user's orders
+- `GET /api/orders/:id` - Get order details and status
+- `POST /api/orders` - Place order (checkout)
+
+#### Admin APIs (Admin Authentication Required)
+- `GET /api/admin/products` - List all products (including inactive)
+- `PATCH /api/admin/products/:id/stock` - Update product stock
+- `GET /api/admin/orders` - Get all orders
+- `GET /api/admin/orders/:id` - Get order details
+- `PATCH /api/admin/orders/:id/status` - Update order status
+- `GET /api/admin/stats` - Get dashboard statistics
+
+### Basic Auth Tokens (Pre-generated)
+
+| Username      | Token                                    |
+|---------------|------------------------------------------|
+| standard_user | `c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw==`   |
+| admin         | `YWRtaW46YWRtaW4xMjM=`                   |
+
+### Documentation
+
+- **[Complete REST API Documentation](./docs/REST-API-DOCUMENTATION.md)** - Full API reference with quick start, examples, and test scenarios
+- **[Postman Collection](./docs/QADemo-Postman-Collection.json)** - Ready-to-import collection for instant testing
 
 ---
 

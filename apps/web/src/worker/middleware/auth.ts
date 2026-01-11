@@ -11,7 +11,22 @@ interface TokenPayload {
 }
 
 /**
- * Authentication middleware - validates JWT access token
+ * Decode Basic Auth header
+ */
+function decodeBasicAuth(authHeader: string): { username: string; password: string } | null {
+  try {
+    const base64Credentials = authHeader.slice(6); // Remove "Basic "
+    const credentials = atob(base64Credentials);
+    const [username, password] = credentials.split(':');
+    return { username, password };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Authentication middleware - validates JWT access token OR Basic Auth
+ * Supports both Bearer token and Basic authentication for automation testing
  */
 export function authMiddleware(): MiddlewareHandler<{
   Bindings: Env;
@@ -20,8 +35,51 @@ export function authMiddleware(): MiddlewareHandler<{
   return async (c, next) => {
     const authHeader = c.req.header('Authorization');
 
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw errors.unauthorized('Missing access token');
+    if (!authHeader) {
+      throw errors.unauthorized('Missing authentication');
+    }
+
+    // Handle Basic Authentication (for automation convenience)
+    if (authHeader.startsWith('Basic ')) {
+      const credentials = decodeBasicAuth(authHeader);
+      
+      if (!credentials) {
+        throw errors.unauthorized('Invalid Basic Auth format');
+      }
+
+      // Verify credentials against database
+      const db = c.env.DB;
+      const user = await db
+        .prepare('SELECT * FROM users WHERE username = ?')
+        .bind(credentials.username)
+        .first<{ id: number; username: string; password_hash: string; user_type: string; is_active: number }>();
+
+      if (!user || user.is_active !== 1) {
+        throw errors.unauthorized('Invalid credentials');
+      }
+
+      // Verify password (import from password service)
+      const { verifyPassword } = await import('../services/password');
+      const isValid = await verifyPassword(credentials.password, user.password_hash);
+
+      if (!isValid) {
+        throw errors.unauthorized('Invalid credentials');
+      }
+
+      // Set user in context
+      c.set('user', {
+        id: user.id,
+        username: user.username,
+        userType: user.user_type as UserType,
+      });
+
+      await next();
+      return;
+    }
+
+    // Handle Bearer Token Authentication
+    if (!authHeader.startsWith('Bearer ')) {
+      throw errors.unauthorized('Invalid authentication format');
     }
 
     const token = authHeader.slice(7);
@@ -83,17 +141,64 @@ export function optionalAuthMiddleware(): MiddlewareHandler<{
 
 /**
  * Admin-only middleware - requires authenticated admin user
+ * Supports both Bearer token and Basic authentication
  */
 export function adminMiddleware(): MiddlewareHandler<{
   Bindings: Env;
   Variables: Variables;
 }> {
   return async (c, next) => {
-    // First, ensure user is authenticated
     const authHeader = c.req.header('Authorization');
 
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw errors.unauthorized('Missing access token');
+    if (!authHeader) {
+      throw errors.unauthorized('Missing authentication');
+    }
+
+    // Handle Basic Authentication
+    if (authHeader.startsWith('Basic ')) {
+      const credentials = decodeBasicAuth(authHeader);
+      
+      if (!credentials) {
+        throw errors.unauthorized('Invalid Basic Auth format');
+      }
+
+      // Verify credentials against database
+      const db = c.env.DB;
+      const user = await db
+        .prepare('SELECT * FROM users WHERE username = ?')
+        .bind(credentials.username)
+        .first<{ id: number; username: string; password_hash: string; user_type: string; is_active: number }>();
+
+      if (!user || user.is_active !== 1) {
+        throw errors.unauthorized('Invalid credentials');
+      }
+
+      if (user.user_type !== 'admin') {
+        throw errors.forbidden('Admin access required');
+      }
+
+      // Verify password
+      const { verifyPassword } = await import('../services/password');
+      const isValid = await verifyPassword(credentials.password, user.password_hash);
+
+      if (!isValid) {
+        throw errors.unauthorized('Invalid credentials');
+      }
+
+      // Set user in context
+      c.set('user', {
+        id: user.id,
+        username: user.username,
+        userType: user.user_type as UserType,
+      });
+
+      await next();
+      return;
+    }
+
+    // Handle Bearer Token Authentication
+    if (!authHeader.startsWith('Bearer ')) {
+      throw errors.unauthorized('Invalid authentication format');
     }
 
     const token = authHeader.slice(7);
