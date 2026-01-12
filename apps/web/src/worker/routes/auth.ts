@@ -39,7 +39,7 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
     throw errors.invalidCredentials();
   }
 
-  // Check if account is locked
+  // Check if account is locked (user_type = 'locked')
   if (userResult.user_type === 'locked') {
     throw errors.accountLocked();
   }
@@ -48,10 +48,11 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
   let isValidPassword = false;
   
   if (isNewHashFormat(userResult.password_hash)) {
+    // Use PBKDF2 verification for new format
     isValidPassword = await verifyPassword(password, userResult.password_hash);
   } else {
-    // For demo purposes, check against known test passwords
-    // In production, you'd migrate these hashes
+    // Legacy bcrypt format - check against known test passwords
+    // This is for backward compatibility with existing test data
     const testPasswords: Record<string, string> = {
       standard_user: 'standard123',
       locked_user: 'locked123',
@@ -59,13 +60,14 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
     };
     isValidPassword = testPasswords[username] === password;
 
-    // If valid, update to new hash format
+    // If valid, migrate to new hash format
     if (isValidPassword) {
       const newHash = await hashPassword(password);
       await db
         .prepare('UPDATE users SET password_hash = ?, updated_at = datetime("now") WHERE id = ?')
         .bind(newHash, userResult.id)
         .run();
+      console.log(`Migrated password hash for user: ${username}`);
     }
   }
 
