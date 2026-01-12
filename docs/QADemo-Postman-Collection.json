@@ -13,13 +13,15 @@
     },
     {
       "key": "userBasicAuth",
-      "value": "Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw==",
-      "type": "string"
+      "value": "Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==",
+      "type": "string",
+      "description": "standard_user:standard123"
     },
     {
       "key": "adminBasicAuth",
-      "value": "Basic YWRtaW46YWRtaW4xMjM=",
-      "type": "string"
+      "value": "Basic YWRtaW5fdXNlcjphZG1pbjEyMw==",
+      "type": "string",
+      "description": "admin_user:admin123"
     },
     {
       "key": "invalidBasicAuth",
@@ -41,6 +43,12 @@
       "key": "testProductId",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string",
+      "description": "Order ID from Place Order request"
     }
   ],
   "item": [
@@ -222,7 +230,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"address\": \"123 Test St\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\",\n    \"expiry\": \"12/26\",\n    \"cvv\": \"123\",\n    \"nameOnCard\": \"John Doe\"\n  }\n}"
+              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"address\": \"123 Test St\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\",\n    \"expiryDate\": \"12/26\",\n    \"cvv\": \"123\",\n    \"cardholderName\": \"John Doe\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -271,7 +279,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\"\n  }\n}"
+              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\",\n    \"expiryDate\": \"12/26\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/orders",
@@ -361,7 +369,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"shipped\"\n}"
+              "raw": "{\n  \"status\": \"processing\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/admin/orders/1/status",
@@ -407,7 +415,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"standard_user\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"username\": \"standard_user\",\n  \"password\": \"standard123\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -447,7 +455,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+              "raw": "{\n  \"username\": \"admin_user\",\n  \"password\": \"admin123\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -526,8 +534,262 @@
       ]
     },
     {
+      "name": "Cart",
+      "description": "Cart management endpoints - requires X-Session-ID header",
+      "item": [
+        {
+          "name": "Get Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Cart data returned', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.items).to.be.an('array');",
+                  "    pm.expect(response.data.totalItems).to.be.a('number');",
+                  "    pm.expect(response.data.totalAmount).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}",
+                "description": "Session ID for cart persistence"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart"]
+            }
+          }
+        },
+        {
+          "name": "Add Item to Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Item added to cart', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.productId).to.be.a('number');",
+                  "    pm.expect(response.data.quantity).to.be.a('number');",
+                  "    pm.expect(response.data.totalItems).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{testProductId}},\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cart/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart", "items"]
+            }
+          }
+        },
+        {
+          "name": "Update Cart Item Quantity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Quantity updated', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.quantity).to.equal(5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{testProductId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart", "items", "{{testProductId}}"]
+            }
+          }
+        },
+        {
+          "name": "Remove Item from Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Item removed from cart', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.removed).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{testProductId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart", "items", "{{testProductId}}"]
+            }
+          }
+        },
+        {
+          "name": "Clear Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Cart cleared', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.cleared).to.be.true;",
+                  "    pm.expect(response.data.totalItems).to.equal(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": ["{{baseUrl}}"],
+              "path": ["cart"]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Orders (User)",
       "item": [
+        {
+          "name": "Place Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Order created successfully', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.id).to.be.a('number');",
+                  "    pm.expect(response.data.status).to.equal('pending');",
+                  "    pm.collectionVariables.set('orderId', response.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}",
+                "description": "User authentication"
+              },
+              {
+                "key": "X-Session-ID",
+                "value": "{{sessionId}}",
+                "description": "Session ID for cart"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"address\": \"123 Main Street, City, State 12345\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242424242424242\",\n    \"expiryDate\": \"12/26\",\n    \"cvv\": \"123\",\n    \"cardholderName\": \"John Doe\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
         {
           "name": "Get User Orders",
           "event": [
@@ -560,6 +822,43 @@
               "raw": "{{baseUrl}}/orders",
               "host": ["{{baseUrl}}"],
               "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Order details with items returned', () => {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response.success).to.be.true;",
+                  "    pm.expect(response.data.id).to.be.a('number');",
+                  "    pm.expect(response.data.status).to.be.a('string');",
+                  "    pm.expect(response.data.items).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{userBasicAuth}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
             }
           }
         }
@@ -720,7 +1019,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"shipped\"\n}"
+              "raw": "{\n  \"status\": \"processing\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/admin/orders/1/status",

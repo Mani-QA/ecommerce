@@ -1,8 +1,8 @@
 # QADemo REST API Documentation
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Base URL:** `https://qademo.com/api` (or `http://localhost:8788/api` for local)  
-**Date:** January 11, 2026
+**Date:** January 12, 2026
 
 ---
 
@@ -29,7 +29,7 @@
 # Step 1: Login
 curl -X POST https://qademo.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"standard_user","password":"password123"}'
+  -d '{"username":"standard_user","password":"standard123"}'
 
 # Step 2: Copy the accessToken from response and use it
 curl -X GET https://qademo.com/api/orders \
@@ -41,16 +41,16 @@ curl -X GET https://qademo.com/api/orders \
 ```bash
 # One step - no login needed!
 curl -X GET https://qademo.com/api/orders \
-  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=="
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="
 ```
 
 ### Pre-Generated Basic Auth Tokens
 
 | Username      | Password     | Basic Auth Token                         | Type     |
 |---------------|--------------|------------------------------------------|----------|
-| standard_user | password123  | `c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw==`   | Customer |
-| problem_user  | password123  | `cHJvYmxlbV91c2VyOnBhc3N3b3JkMTIz`       | Customer |
-| admin         | admin123     | `YWRtaW46YWRtaW4xMjM=`                   | Admin    |
+| standard_user | standard123  | `c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==`   | Customer |
+| locked_user   | locked123    | `bG9ja2VkX3VzZXI6bG9ja2VkMTIz`           | Customer (Locked) |
+| admin_user    | admin123     | `YWRtaW5fdXNlcjphZG1pbjEyMw==`           | Admin    |
 
 **Generate your own:**
 ```bash
@@ -85,7 +85,7 @@ The QADemo API uses **JWT (JSON Web Tokens)** for authentication. All protected 
 ```json
 {
   "username": "standard_user",
-  "password": "password123"
+  "password": "standard123"
 }
 ```
 
@@ -121,11 +121,11 @@ For automation testing, you can also use **HTTP Basic Authentication**. The API 
 
 ```http
 GET /api/orders
-Authorization: Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw==
+Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==
 ```
 
 > **Note:** Base64 encode `username:password` for Basic Auth  
-> Example: `standard_user:password123` → `c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw==`
+> Example: `standard_user:standard123` → `c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==`
 
 ### Token Expiration
 
@@ -146,10 +146,9 @@ Use the refresh token to get a new access token:
 
 | Username          | Password     | Type     | Purpose                          |
 |-------------------|--------------|----------|----------------------------------|
-| `standard_user`   | `password123`| Customer | Standard user for testing        |
-| `problem_user`    | `password123`| Customer | User with order issues           |
-| `locked_user`     | `password123`| Customer | Locked account (login fails)     |
-| `admin`           | `admin123`   | Admin    | Full admin access                |
+| `standard_user`   | `standard123`| Customer | Standard user for testing        |
+| `locked_user`     | `locked123`  | Customer | User with locked account (login fails) |
+| `admin_user`      | `admin123`   | Admin    | Full admin access                |
 
 ---
 
@@ -362,7 +361,7 @@ curl -X POST https://qademo.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "standard_user",
-    "password": "password123"
+    "password": "standard123"
   }'
 ```
 
@@ -512,13 +511,13 @@ curl -X GET https://qademo.com/api/orders/1 \
 **Auth Required:** Yes
 
 **Headers Required:**
-- `Authorization: Bearer <token>`
+- `Authorization: Bearer <token>` or `Authorization: Basic <base64-credentials>`
 - `X-Session-ID: <session-uuid>` (required for cart access)
 
 **Request:**
 ```bash
 curl -X POST https://qademo.com/api/orders \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==" \
   -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000" \
   -H "Content-Type: application/json" \
   -d '{
@@ -529,14 +528,19 @@ curl -X POST https://qademo.com/api/orders \
     },
     "payment": {
       "cardNumber": "4242424242424242",
-      "expiry": "12/26",
+      "expiryDate": "12/26",
       "cvv": "123",
-      "nameOnCard": "John Doe"
+      "cardholderName": "John Doe"
     }
   }'
 ```
 
-**Response:**
+**Important Payment Field Names:**
+- ✅ Use `expiryDate` (format: `MM/YY`)
+- ✅ Use `cardholderName`
+- ❌ NOT `expiry` or `nameOnCard`
+
+**Response (201 Created):**
 ```json
 {
   "success": true,
@@ -556,8 +560,151 @@ curl -X POST https://qademo.com/api/orders \
 ```
 
 **Test Card Numbers:**
-- `4242424242424242` - Success
-- `4000000000000002` - Card declined (triggers validation error)
+- `4242424242424242` - Visa (always succeeds)
+- `4000000000000002` - Visa (declined)
+- `5555555555554444` - Mastercard
+- `378282246310005` - American Express
+
+### 5. Cart Management
+
+**Note:** Cart operations do NOT require authentication. Use `X-Session-ID` header for cart persistence.
+
+#### Get Cart
+
+**Endpoint:** `GET /api/cart`
+
+**Headers Required:**
+- `X-Session-ID: <session-uuid>`
+
+**Request:**
+```bash
+curl -X GET https://qademo.com/api/cart \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "productId": 1,
+        "quantity": 2,
+        "product": {
+          "id": 1,
+          "name": "Premium Laptop",
+          "price": 1299.99,
+          "stock": 48,
+          "imageUrl": "/api/images/laptop.jpg"
+        }
+      }
+    ],
+    "totalItems": 2,
+    "totalAmount": 2599.98
+  }
+}
+```
+
+#### Add Item to Cart
+
+**Endpoint:** `POST /api/cart/items`
+
+**Headers Required:**
+- `X-Session-ID: <session-uuid>`
+- `Content-Type: application/json`
+
+**Request:**
+```bash
+curl -X POST https://qademo.com/api/cart/items \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productId": 1,
+    "quantity": 2
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "productId": 1,
+    "quantity": 2,
+    "totalItems": 2
+  }
+}
+```
+
+#### Update Cart Item Quantity
+
+**Endpoint:** `PATCH /api/cart/items/:productId`
+
+**Request:**
+```bash
+curl -X PATCH https://qademo.com/api/cart/items/1 \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 5
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "productId": 1,
+    "quantity": 5,
+    "totalItems": 5
+  }
+}
+```
+
+#### Remove Item from Cart
+
+**Endpoint:** `DELETE /api/cart/items/:productId`
+
+**Request:**
+```bash
+curl -X DELETE https://qademo.com/api/cart/items/1 \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "productId": 1,
+    "removed": true,
+    "totalItems": 0
+  }
+}
+```
+
+#### Clear Cart
+
+**Endpoint:** `DELETE /api/cart`
+
+**Request:**
+```bash
+curl -X DELETE https://qademo.com/api/cart \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "cleared": true,
+    "totalItems": 0
+  }
+}
+```
 
 ---
 
@@ -782,6 +929,238 @@ curl -X GET https://qademo.com/api/admin/stats \
 
 ---
 
+## Complete Order Placement Workflow
+
+This section provides a step-by-step guide for placing orders through the API.
+
+### Step-by-Step: Place an Order
+
+#### Step 1: Add Items to Cart
+
+```bash
+# No authentication needed for cart operations
+curl -X POST https://qademo.com/api/cart/items \
+  -H "Content-Type: application/json" \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000" \
+  -d '{
+    "productId": 1,
+    "quantity": 2
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "productId": 1,
+    "quantity": 2,
+    "totalItems": 2
+  }
+}
+```
+
+#### Step 2: View Cart (Optional)
+
+```bash
+curl -X GET https://qademo.com/api/cart \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "productId": 1,
+        "quantity": 2,
+        "product": {
+          "id": 1,
+          "name": "Premium Laptop",
+          "price": 1299.99,
+          "stock": 48
+        }
+      }
+    ],
+    "totalItems": 2,
+    "totalAmount": 2599.98
+  }
+}
+```
+
+#### Step 3: Place Order (Checkout)
+
+```bash
+# Authentication required for checkout
+curl -X POST https://qademo.com/api/orders \
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==" \
+  -H "X-Session-ID: 550e8400-e29b-41d4-a716-446655440000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shipping": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "address": "123 Main Street, City, State 12345"
+    },
+    "payment": {
+      "cardNumber": "4242424242424242",
+      "expiryDate": "12/26",
+      "cvv": "123",
+      "cardholderName": "John Doe"
+    }
+  }'
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "userId": 1,
+    "totalAmount": 2599.98,
+    "status": "pending",
+    "shippingFirstName": "John",
+    "shippingLastName": "Doe",
+    "shippingAddress": "123 Main Street, City, State 12345",
+    "paymentLastFour": "4242",
+    "createdAt": "2026-01-12T10:30:00Z"
+  }
+}
+```
+
+#### Step 4: Get Order Details
+
+```bash
+curl -X GET https://qademo.com/api/orders/42 \
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "userId": 1,
+    "totalAmount": 2599.98,
+    "status": "pending",
+    "shippingFirstName": "John",
+    "shippingLastName": "Doe",
+    "shippingAddress": "123 Main Street, City, State 12345",
+    "paymentLastFour": "4242",
+    "createdAt": "2026-01-12T10:30:00Z",
+    "items": [
+      {
+        "id": 1,
+        "orderId": 42,
+        "productId": 1,
+        "productName": "Premium Laptop",
+        "quantity": 2,
+        "unitPrice": 1299.99
+      }
+    ]
+  }
+}
+```
+
+### Important Notes for Order Workflow
+
+#### Session ID
+- **Required** for cart operations and order placement
+- Use a UUID format: `550e8400-e29b-41d4-a716-446655440000`
+- Same session ID must be used for cart and checkout
+- Cart data persists for 7 days
+
+#### Authentication
+- **NOT required** for cart operations (add/update/view cart)
+- **Required** for placing orders (`POST /api/orders`)
+- Use either Basic Auth or Bearer Token
+
+#### Error Scenarios
+
+**Empty Cart:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CART_EMPTY",
+    "message": "Cart is empty. Add items before checkout."
+  }
+}
+```
+
+**Out of Stock:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "OUT_OF_STOCK",
+    "message": "Premium Laptop is out of stock"
+  }
+}
+```
+
+**Missing Authentication:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Missing authentication"
+  }
+}
+```
+
+### PowerShell Complete Workflow Example
+
+```powershell
+# Step 1: Add item to cart
+$sessionId = "550e8400-e29b-41d4-a716-446655440000"
+$addToCart = @{productId=1; quantity=2} | ConvertTo-Json
+$headers = @{"X-Session-ID"=$sessionId; "Content-Type"="application/json"}
+Invoke-RestMethod -Uri "https://qademo.com/api/cart/items" `
+  -Method Post -Body $addToCart -Headers $headers
+
+# Step 2: Place order
+$orderBody = @{
+  shipping = @{
+    firstName = "John"
+    lastName = "Doe"
+    address = "123 Main St"
+  }
+  payment = @{
+    cardNumber = "4242424242424242"
+    expiryDate = "12/26"
+    cvv = "123"
+    cardholderName = "John Doe"
+  }
+} | ConvertTo-Json -Depth 3
+
+$authHeaders = @{
+  Authorization = "Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="
+  "X-Session-ID" = $sessionId
+  "Content-Type" = "application/json"
+}
+
+$order = Invoke-RestMethod -Uri "https://qademo.com/api/orders" `
+  -Method Post -Body $orderBody -Headers $authHeaders
+
+Write-Host "Order created! ID: $($order.data.id)"
+
+# Step 3: Get order details
+$orderId = $order.data.id
+$authHeaders = @{Authorization = "Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="}
+$orderDetails = Invoke-RestMethod -Uri "https://qademo.com/api/orders/$orderId" `
+  -Method Get -Headers $authHeaders
+
+$orderDetails.data | ConvertTo-Json -Depth 3
+```
+
+---
+
 ## Common Test Scenarios
 
 These scenarios demonstrate the most frequently used API operations for automation testing.
@@ -844,14 +1223,14 @@ data.forEach(product => {
 
 ```bash
 curl https://qademo.com/api/orders \
-  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=="
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="
 ```
 
 **Automation Check:**
 ```python
 import requests
 
-headers = {'Authorization': 'Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=='}
+headers = {'Authorization': 'Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=='}
 response = requests.get('https://qademo.com/api/orders', headers=headers)
 orders = response.json()['data']
 
@@ -867,7 +1246,7 @@ if orders:
 
 ```bash
 curl https://qademo.com/api/orders/42 \
-  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=="
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="
 ```
 
 **Automation - Poll for Status Changes:**
@@ -876,7 +1255,7 @@ import time
 import requests
 
 order_id = 42
-auth = {'Authorization': 'Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=='}
+auth = {'Authorization': 'Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=='}
 
 for i in range(10):
     response = requests.get(f'https://qademo.com/api/orders/{order_id}', headers=auth)
@@ -896,7 +1275,7 @@ for i in range(10):
 
 ```bash
 curl -X PATCH https://qademo.com/api/admin/products/1/stock \
-  -H "Authorization: Basic YWRtaW46YWRtaW4xMjM=" \
+  -H "Authorization: Basic YWRtaW5fdXNlcjphZG1pbjEyMw==" \
   -H "Content-Type: application/json" \
   -d '{"stock": 100}'
 ```
@@ -905,7 +1284,7 @@ curl -X PATCH https://qademo.com/api/admin/products/1/stock \
 ```python
 import requests
 
-admin_auth = {'Authorization': 'Basic YWRtaW46YWRtaW4xMjM='}
+admin_auth = {'Authorization': 'Basic YWRtaW5fdXNlcjphZG1pbjEyMw=='}
 
 # 1. Check current stock
 product = requests.get('https://qademo.com/api/products/id/1').json()['data']
@@ -931,7 +1310,7 @@ assert product['stock'] == new_stock, "Stock update failed!"
 
 ```bash
 curl -X PATCH https://qademo.com/api/admin/orders/42/status \
-  -H "Authorization: Basic YWRtaW46YWRtaW4xMjM=" \
+  -H "Authorization: Basic YWRtaW5fdXNlcjphZG1pbjEyMw==" \
   -H "Content-Type: application/json" \
   -d '{"status": "shipped"}'
 ```
@@ -945,7 +1324,7 @@ import time
 
 order_id = 42
 admin_auth = {
-    'Authorization': 'Basic YWRtaW46YWRtaW4xMjM=',
+    'Authorization': 'Basic YWRtaW5fdXNlcjphZG1pbjEyMw==',
     'Content-Type': 'application/json'
 }
 
@@ -976,8 +1355,8 @@ def basic_auth(username, password):
     return f"Basic {token}"
 
 # Setup
-user_auth = {'Authorization': basic_auth("standard_user", "password123")}
-admin_auth = {'Authorization': basic_auth("admin", "admin123")}
+user_auth = {'Authorization': basic_auth("standard_user", "standard123")}
+admin_auth = {'Authorization': basic_auth("admin_user", "admin123")}
 
 print("=== API Test Suite ===\n")
 
@@ -1049,7 +1428,7 @@ session_id = str(uuid.uuid4())
 # 1. Login
 login_response = requests.post(f"{BASE_URL}/auth/login", json={
     "username": "standard_user",
-    "password": "password123"
+    "password": "standard123"
 })
 token = login_response.json()["data"]["accessToken"]
 headers = {
@@ -1074,9 +1453,9 @@ order_response = requests.post(f"{BASE_URL}/orders", headers=headers, json={
     },
     "payment": {
         "cardNumber": "4242424242424242",
-        "expiry": "12/26",
+        "expiryDate": "12/26",
         "cvv": "123",
-        "nameOnCard": "John Doe"
+        "cardholderName": "John Doe"
     }
 })
 order = order_response.json()["data"]
@@ -1151,19 +1530,19 @@ console.log('Low stock products:', stats.lowStockProducts.length);
 ```bash
 # Login is not needed with Basic Auth
 # Encode username:password to base64
-# echo -n "standard_user:password123" | base64
-# Result: c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw==
+# echo -n "standard_user:standard123" | base64
+# Result: c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==
 
 # Get user orders
 curl -X GET https://qademo.com/api/orders \
-  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpwYXNzd29yZDEyMw=="
+  -H "Authorization: Basic c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw=="
 
 # Admin operations with Basic Auth
-# echo -n "admin:admin123" | base64
-# Result: YWRtaW46YWRtaW4xMjM=
+# echo -n "admin_user:admin123" | base64
+# Result: YWRtaW5fdXNlcjphZG1pbjEyMw==
 
 curl -X PATCH https://qademo.com/api/admin/orders/1/status \
-  -H "Authorization: Basic YWRtaW46YWRtaW4xMjM=" \
+  -H "Authorization: Basic YWRtaW5fdXNlcjphZG1pbjEyMw==" \
   -H "Content-Type: application/json" \
   -d '{"status": "shipped"}'
 ```
@@ -1179,7 +1558,7 @@ test('API: Complete order flow', async ({ request }) => {
   const loginResp = await request.post('/api/auth/login', {
     data: {
       username: 'standard_user',
-      password: 'password123'
+      password: 'standard123'
     }
   });
   const { accessToken } = (await loginResp.json()).data;
@@ -1199,7 +1578,7 @@ test('API: Complete order flow', async ({ request }) => {
   
   // 4. Admin: Update order status
   const adminLoginResp = await request.post('/api/auth/login', {
-    data: { username: 'admin', password: 'admin123' }
+    data: { username: 'admin_user', password: 'admin123' }
   });
   const adminToken = (await adminLoginResp.json()).data.accessToken;
   
