@@ -108,8 +108,8 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.route('/api', api);
 
 // Export default worker wrapped with Sentry
-export default Sentry.withSentry(
-  (env) => getSentryConfig(env),
+export default Sentry.withSentry<Env>(
+  (env: Env) => getSentryConfig(env),
   {
     async fetch(
       request: Request,
