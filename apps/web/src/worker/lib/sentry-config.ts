@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import type { Env } from '../types/bindings';
 
 /**
@@ -15,8 +16,13 @@ export function getSentryConfig(env: Env) {
     // Send user IP and headers for context
     sendDefaultPii: true,
     
-    // Enable logs
+    // Enable logs to be sent to Sentry
     enableLogs: true,
+    
+    // Integrations: send console.log, console.warn, and console.error calls as logs to Sentry
+    integrations: [
+      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
+    ],
     
     // Performance tracing - 20% sample rate in production, 100% in dev
     tracesSampleRate: isDev ? 1.0 : 0.2,

@@ -33,6 +33,7 @@ QADemo is purpose-built for QA engineers and developers learning test automation
 - **Real Payment Flow** - Simulated checkout with test card (`4242 4242 4242 4242`)
 - **State Persistence** - Cart and auth state survive page reloads
 - **No Re-render Issues** - Stable elements for reliable automation
+- **Monitoring Integration** - Sentry for error tracking and logging (practice observability testing)
 
 ### 🧪 Test Scenarios You Can Practice
 
@@ -48,6 +49,7 @@ QADemo is purpose-built for QA engineers and developers learning test automation
 | **Hybrid Testing** | Combine UI and API testing (e.g., create order via UI, verify via API) |
 | **Responsive Design** | Mobile menu, breakpoint testing, touch interactions |
 | **Error Handling** | Network errors, validation errors, edge cases |
+| **Observability** | Sentry integration for error monitoring, logging, and performance tracking |
 
 ---
 
@@ -206,6 +208,7 @@ QADemo.com/
 | Cloudflare KV | Key-value storage (sessions, cart) |
 | Jose | JWT token generation and verification |
 | Web Crypto API | Password hashing (PBKDF2) |
+| Sentry | Error monitoring, performance tracing, and logging |
 
 ### Development
 | Tool | Purpose |
@@ -214,6 +217,50 @@ QADemo.com/
 | Turborepo | Monorepo build system with caching |
 | Wrangler | Cloudflare CLI for dev and deployment |
 | ESLint | Code linting |
+
+---
+
+## 📊 Monitoring & Observability
+
+QADemo integrates **Sentry** for comprehensive monitoring and observability, making it easy to track errors, performance, and user behavior.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Error Monitoring** | Automatic capture of all application errors with full stack traces |
+| **Performance Tracing** | 20% sample rate for request tracing and performance metrics |
+| **Application Logs** | Centralized logging for authentication, orders, and admin actions |
+| **Security Monitoring** | Track admin logins with IP address and country/city information |
+| **Product Analytics** | Monitor out-of-stock product access and user behavior |
+
+### Logged Events (100% Capture)
+
+| Event | Details Captured |
+|-------|------------------|
+| **Admin Login** | Username, IP address, country, city, user-agent |
+| **Failed Admin Login** | Username, IP address (security audit) |
+| **Out-of-Stock Access** | Product name, ID, user IP, country, user-agent |
+| **Order Placement** | Order ID, total amount, item count, user |
+| **Order Failures** | Validation errors, stock issues, payment failures |
+| **Failed Login Attempts** | Username, IP address (security tracking) |
+| **Locked Account Access** | Username, IP address (security audit) |
+
+### How It Works
+
+- **Error Tracking**: All unhandled exceptions are automatically captured
+- **Breadcrumbs**: Track user actions leading up to errors
+- **Performance**: 20% of requests are traced for performance insights
+- **Context**: Each error includes request details, user info, and environment
+- **Source Maps**: Readable stack traces with original TypeScript code
+
+### Accessing Sentry
+
+- **Issues**: https://sentry.io/issues/ - View captured errors
+- **Performance**: https://sentry.io/performance/ - Monitor traces and metrics
+- **Release Tracking**: Each deployment creates a new release with version ID
+
+This makes QADemo ideal for testing monitoring and observability integrations in your automation frameworks.
 
 ---
 
@@ -287,11 +334,16 @@ wrangler kv namespace create KV_SESSIONS
 
 2. **Update `wrangler.toml`** with the generated IDs.
 
-3. **Set JWT Secret:**
+3. **Set Secrets:**
 
 ```bash
+# JWT Secret for authentication
 wrangler secret put JWT_SECRET
 # Enter a secure random string
+
+# Sentry DSN for monitoring (optional)
+wrangler secret put SENTRY_DSN
+# Enter your Sentry DSN from https://sentry.io/
 ```
 
 4. **Initialize Database:**

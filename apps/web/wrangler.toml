@@ -48,9 +48,18 @@ local_protocol = "http"
 # Build settings - build is handled by deploy script, not wrangler
 # This avoids duplicate builds during deployment
 
-# Observability
+# Observability - Export logs and traces to Sentry
 [observability]
 enabled = true
 
 # Enable source map uploads for Sentry
 upload_source_maps = true
+
+# Export logs to Sentry via OpenTelemetry
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+# Export traces to Sentry
+[observability.traces]
+enabled = true

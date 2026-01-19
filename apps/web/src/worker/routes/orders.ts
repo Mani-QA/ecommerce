@@ -91,7 +91,7 @@ orderRoutes.get('/:id', async (c) => {
     success: true,
     data: {
       ...orderData,
-      items: items.results.map((item) => ({
+      items: items.results.map((item: OrderItemRow & { product_name: string }) => ({
         id: item.id,
         orderId: item.order_id,
         productId: item.product_id,
@@ -114,35 +114,34 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
   const kv = c.env.KV_SESSIONS;
   const sessionId = c.req.header('X-Session-ID');
 
-  try {
-    Sentry.addBreadcrumb({
-      category: 'order',
-      message: 'Order placement initiated',
-      level: 'info',
-      data: { userId: user.id, username: user.username },
+  Sentry.addBreadcrumb({
+    category: 'order',
+    message: 'Order placement initiated',
+    level: 'info',
+    data: { userId: user.id, username: user.username },
+  });
+
+  // Validate card number (Luhn algorithm)
+  if (!isValidCardNumber(payment.cardNumber)) {
+    throw errors.validation('Invalid card number', {
+      'payment.cardNumber': ['Card number failed validation'],
     });
+  }
 
-    // Validate card number (Luhn algorithm)
-    if (!isValidCardNumber(payment.cardNumber)) {
-      throw errors.validation('Invalid card number', {
-        'payment.cardNumber': ['Card number failed validation'],
-      });
-    }
+  // Get cart from session
+  if (!sessionId) {
+    throw errors.cartEmpty();
+  }
 
-    // Get cart from session
-    if (!sessionId) {
-      throw errors.cartEmpty();
-    }
+  const cartKey = `cart:${sessionId}`;
+  const cartData = await kv.get<CartData>(cartKey, 'json');
 
-    const cartKey = `cart:${sessionId}`;
-    const cartData = await kv.get<CartData>(cartKey, 'json');
-
-    if (!cartData || cartData.items.length === 0) {
-      throw errors.cartEmpty();
-    }
+  if (!cartData || cartData.items.length === 0) {
+    throw errors.cartEmpty();
+  }
 
   // Fetch products and validate stock
-  const productIds = cartData.items.map((item) => item.productId);
+  const productIds = cartData.items.map((item: { productId: number; quantity: number }) => item.productId);
   const placeholders = productIds.map(() => '?').join(',');
 
   const products = await db
@@ -150,19 +149,20 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
     .bind(...productIds)
     .all<ProductRow>();
 
-  const productMap = new Map(products.results.map((p) => [p.id, p]));
+  const productMap = new Map<number, ProductRow>(products.results.map((p: ProductRow) => [p.id, p]));
 
   // Validate all items exist and have sufficient stock
   let totalAmount = 0;
   const orderItems: Array<{ productId: number; quantity: number; price: number }> = [];
 
   for (const item of cartData.items) {
-    const product = productMap.get(item.productId);
+    const product: ProductRow | undefined = productMap.get(item.productId);
     
     if (!product) {
       throw errors.notFound('Product');
     }
 
+    // TypeScript now knows product is ProductRow (not undefined)
     if (product.stock < item.quantity) {
       throw errors.outOfStock(product.name);
     }
@@ -238,19 +238,6 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
     },
     201
   );
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: { operation: 'order_placement' },
-      contexts: {
-        order: {
-          userId: user.id,
-          sessionId: sessionId || 'none',
-        },
-      },
-    });
-    throw error;
-  }
 });
 
 export { orderRoutes };
-
