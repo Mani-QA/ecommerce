@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
@@ -29,6 +30,13 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
   const { username, password } = c.req.valid('json');
   const db = c.env.DB;
 
+  Sentry.addBreadcrumb({
+    category: 'auth',
+    message: 'Login attempt',
+    level: 'info',
+    data: { username },
+  });
+
   // Find user by username
   const userResult = await db
     .prepare('SELECT * FROM users WHERE username = ?')
@@ -36,11 +44,30 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
     .first<UserRow>();
 
   if (!userResult) {
+    const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const country = c.req.header('CF-IPCountry') || 'unknown';
+    
+    Sentry.addBreadcrumb({
+      category: 'auth',
+      message: 'Login failed - user not found',
+      level: 'warning',
+      data: { username },
+    });
+    
+    // Log failed login attempts for non-existent users (100% capture)
+    console.log(`[AUTH_FAILED] Login attempt for non-existent user: ${username} - IP: ${ip}, Country: ${country}`);
+    
     throw errors.invalidCredentials();
   }
 
   // Check if account is locked (user_type = 'locked')
   if (userResult.user_type === 'locked') {
+    const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const country = c.req.header('CF-IPCountry') || 'unknown';
+    
+    // Log locked account access attempts (100% capture)
+    console.log(`[AUTH_LOCKED] Login attempt for locked account: ${username} - IP: ${ip}, Country: ${country}`);
+    
     throw errors.accountLocked();
   }
 
@@ -72,7 +99,45 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
   }
 
   if (!isValidPassword) {
+    const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const country = c.req.header('CF-IPCountry') || 'unknown';
+    
+    Sentry.addBreadcrumb({
+      category: 'auth',
+      message: 'Login failed - invalid password',
+      level: 'warning',
+      data: { username },
+    });
+    
+    // Log failed login attempts, especially for admin accounts (100% capture)
+    if (userResult.user_type === 'admin') {
+      console.log(`[ADMIN_LOGIN_FAILED] ⚠️ FAILED ADMIN LOGIN ATTEMPT - User: ${username} - IP: ${ip}, Country: ${country}`);
+    } else {
+      console.log(`[AUTH_FAILED] Failed login attempt for user: ${username} - IP: ${ip}, Country: ${country}`);
+    }
+    
     throw errors.invalidCredentials();
+  }
+
+  Sentry.addBreadcrumb({
+    category: 'auth',
+    message: 'Login successful',
+    level: 'info',
+    data: { username, userId: userResult.id },
+  });
+
+  // Get IP address and country from Cloudflare headers
+  const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+  const country = c.req.header('CF-IPCountry') || 'unknown';
+  const city = c.req.header('CF-IPCity') || 'unknown';
+  const userAgent = c.req.header('User-Agent') || 'unknown';
+
+  // Log successful login (will appear in Sentry Logs)
+  console.log(`[AUTH] Successful login for user: ${username} (ID: ${userResult.id}) - IP: ${ip}, Country: ${country}, City: ${city}`);
+
+  // Special logging for admin logins (100% capture with full details)
+  if (userResult.user_type === 'admin') {
+    console.log(`[ADMIN_LOGIN] ⚠️ ADMIN ACCESS - User: ${username} (ID: ${userResult.id}) - IP: ${ip}, Country: ${country}, City: ${city}, User-Agent: ${userAgent.substring(0, 100)}`);
   }
 
   // Generate tokens

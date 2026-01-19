@@ -2,7 +2,7 @@
 name = "qademo"
 main = "src/worker/index.ts"
 compatibility_date = "2024-12-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat", "nodejs_als"]
 
 # Static Assets configuration (replaces Pages)
 [assets]
@@ -11,6 +11,10 @@ binding = "ASSETS"
 
 # Serve index.html for SPA routes
 not_found_handling = "single-page-application"
+
+# Version metadata binding for Sentry release tracking
+[version_metadata]
+binding = "CF_VERSION_METADATA"
 
 # D1 Database binding
 [[d1_databases]]
@@ -47,3 +51,6 @@ local_protocol = "http"
 # Observability
 [observability]
 enabled = true
+
+# Enable source map uploads for Sentry
+upload_source_maps = true

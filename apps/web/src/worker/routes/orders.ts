@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createOrderSchema, isValidCardNumber, getCardLastFour } from '@qademo/shared';
@@ -113,24 +114,32 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
   const kv = c.env.KV_SESSIONS;
   const sessionId = c.req.header('X-Session-ID');
 
-  // Validate card number (Luhn algorithm)
-  if (!isValidCardNumber(payment.cardNumber)) {
-    throw errors.validation('Invalid card number', {
-      'payment.cardNumber': ['Card number failed validation'],
+  try {
+    Sentry.addBreadcrumb({
+      category: 'order',
+      message: 'Order placement initiated',
+      level: 'info',
+      data: { userId: user.id, username: user.username },
     });
-  }
 
-  // Get cart from session
-  if (!sessionId) {
-    throw errors.cartEmpty();
-  }
+    // Validate card number (Luhn algorithm)
+    if (!isValidCardNumber(payment.cardNumber)) {
+      throw errors.validation('Invalid card number', {
+        'payment.cardNumber': ['Card number failed validation'],
+      });
+    }
 
-  const cartKey = `cart:${sessionId}`;
-  const cartData = await kv.get<CartData>(cartKey, 'json');
+    // Get cart from session
+    if (!sessionId) {
+      throw errors.cartEmpty();
+    }
 
-  if (!cartData || cartData.items.length === 0) {
-    throw errors.cartEmpty();
-  }
+    const cartKey = `cart:${sessionId}`;
+    const cartData = await kv.get<CartData>(cartKey, 'json');
+
+    if (!cartData || cartData.items.length === 0) {
+      throw errors.cartEmpty();
+    }
 
   // Fetch products and validate stock
   const productIds = cartData.items.map((item) => item.productId);
@@ -212,6 +221,16 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
     .bind(orderId)
     .first<OrderRow>();
 
+  Sentry.addBreadcrumb({
+    category: 'order',
+    message: `Order ${orderId} created successfully`,
+    level: 'info',
+    data: { orderId, totalAmount, itemCount: orderItems.length },
+  });
+
+  // Log successful order (will appear in Sentry Logs)
+  console.log(`[ORDER] Order ${orderId} created for user ${user.username} - Total: $${totalAmount}, Items: ${orderItems.length}`);
+
   return c.json(
     {
       success: true,
@@ -219,6 +238,18 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
     },
     201
   );
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { operation: 'order_placement' },
+      contexts: {
+        order: {
+          userId: user.id,
+          sessionId: sessionId || 'none',
+        },
+      },
+    });
+    throw error;
+  }
 });
 
 export { orderRoutes };

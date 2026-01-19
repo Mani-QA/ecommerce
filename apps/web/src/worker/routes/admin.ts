@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { updateStockSchema, updateOrderStatusSchema } from '@qademo/shared';
@@ -50,6 +51,14 @@ adminRoutes.patch(
     const id = parseInt(c.req.param('id'), 10);
     const { stock } = c.req.valid('json');
     const db = c.env.DB;
+    const user = c.get('user')!;
+
+    Sentry.addBreadcrumb({
+      category: 'admin',
+      message: 'Stock update initiated',
+      level: 'info',
+      data: { productId: id, newStock: stock, adminUser: user.username },
+    });
 
     if (isNaN(id) || id <= 0) {
       throw errors.validation('Invalid product ID');
@@ -75,6 +84,16 @@ adminRoutes.patch(
       `${c.req.url.split('/api')[0]}/api/products`,
       `${c.req.url.split('/api')[0]}/api/products/${existing.slug}`,
     ]);
+
+    Sentry.addBreadcrumb({
+      category: 'admin',
+      message: 'Stock updated successfully',
+      level: 'info',
+      data: { productId: id, newStock: stock },
+    });
+
+    // Log admin action (will appear in Sentry Logs)
+    console.log(`[ADMIN] Product ${id} stock updated to ${stock} by ${user.username}`);
 
     return c.json({
       success: true,
@@ -176,6 +195,14 @@ adminRoutes.patch(
     const orderId = parseInt(c.req.param('id'), 10);
     const { status } = c.req.valid('json');
     const db = c.env.DB;
+    const user = c.get('user')!;
+
+    Sentry.addBreadcrumb({
+      category: 'admin',
+      message: 'Order status update initiated',
+      level: 'info',
+      data: { orderId, newStatus: status, adminUser: user.username },
+    });
 
     if (isNaN(orderId) || orderId <= 0) {
       throw errors.validation('Invalid order ID');
@@ -195,6 +222,16 @@ adminRoutes.patch(
       .prepare('UPDATE orders SET status = ?, updated_at = datetime("now") WHERE id = ?')
       .bind(status, orderId)
       .run();
+
+    Sentry.addBreadcrumb({
+      category: 'admin',
+      message: 'Order status updated successfully',
+      level: 'info',
+      data: { orderId, newStatus: status },
+    });
+
+    // Log admin action (will appear in Sentry Logs)
+    console.log(`[ADMIN] Order ${orderId} status changed to '${status}' by ${user.username}`);
 
     return c.json({
       success: true,

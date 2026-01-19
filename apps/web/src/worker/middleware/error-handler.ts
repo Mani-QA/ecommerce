@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import type { ErrorHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
@@ -27,6 +28,26 @@ export const errorHandler: ErrorHandler<{ Bindings: Env; Variables: Variables }>
   c
 ) => {
   console.error('Error:', err);
+
+  // Capture error in Sentry with context
+  const user = c.get('user');
+  Sentry.captureException(err, {
+    contexts: {
+      request: {
+        url: c.req.url,
+        method: c.req.method,
+        headers: Object.fromEntries(c.req.raw.headers),
+      },
+    },
+    user: user ? { 
+      id: user.id.toString(), 
+      username: user.username 
+    } : undefined,
+    tags: {
+      error_type: err.name,
+      endpoint: new URL(c.req.url).pathname,
+    },
+  });
 
   // Handle Zod validation errors
   if (err instanceof ZodError) {

@@ -1,0 +1,6 @@
+[defaults]
+org=amail
+project=qademo
+
+[auth]
+token=

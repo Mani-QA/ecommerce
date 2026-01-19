@@ -72,6 +72,15 @@ productRoutes.get('/:slug', async (c) => {
     result.imageUrl = `/api/images/${result.imageKey}`;
   }
 
+  // Log out-of-stock product access (100% capture)
+  if (result.stock === 0) {
+    const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const country = c.req.header('CF-IPCountry') || 'unknown';
+    const userAgent = c.req.header('User-Agent') || 'unknown';
+    
+    console.log(`[OUT_OF_STOCK] Product "${result.name}" (ID: ${result.id}) accessed while out of stock - IP: ${ip}, Country: ${country}, UA: ${userAgent.substring(0, 50)}`);
+  }
+
   // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
   c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
   c.header('CDN-Cache-Control', 'public, max-age=86400');
@@ -108,6 +117,15 @@ productRoutes.get('/id/:id', async (c) => {
   const result = productRowToProduct(product);
   if (result.imageKey) {
     result.imageUrl = `/api/images/${result.imageKey}`;
+  }
+
+  // Log out-of-stock product access by ID (100% capture)
+  if (result.stock === 0) {
+    const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const country = c.req.header('CF-IPCountry') || 'unknown';
+    const userAgent = c.req.header('User-Agent') || 'unknown';
+    
+    console.log(`[OUT_OF_STOCK] Product "${result.name}" (ID: ${result.id}) accessed while out of stock - IP: ${ip}, Country: ${country}, UA: ${userAgent.substring(0, 50)}`);
   }
 
   // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days

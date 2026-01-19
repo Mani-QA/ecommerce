@@ -17,6 +17,10 @@ export interface Env {
   // Environment variables
   ENVIRONMENT: string;
   JWT_SECRET: string;
+  
+  // Sentry configuration
+  SENTRY_DSN: string;
+  CF_VERSION_METADATA: { id: string; tag?: string; timestamp?: string };
 }
 
 // Context variables set by middleware
