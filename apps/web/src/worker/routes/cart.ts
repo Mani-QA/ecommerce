@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { addToCartSchema, updateCartItemSchema } from '@qademo/shared';
@@ -153,6 +154,13 @@ cartRoutes.post('/items', zValidator('json', addToCartSchema), async (c) => {
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Track cart metrics
+  Sentry.metrics.count('cart.item_added', 1, {
+    tags: { product_id: productId.toString() },
+  });
+  
+  Sentry.metrics.gauge('cart.total_items', totalItems);
+
   return c.json({
     success: true,
     data: {
@@ -245,6 +253,13 @@ cartRoutes.delete('/items/:productId', async (c) => {
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Track cart removal metrics
+  Sentry.metrics.count('cart.item_removed', 1, {
+    tags: { product_id: productId.toString() },
+  });
+  
+  Sentry.metrics.gauge('cart.total_items', totalItems);
+
   return c.json({
     success: true,
     data: {
@@ -265,6 +280,9 @@ cartRoutes.delete('/', async (c) => {
 
   const cartKey = `cart:${sessionId}`;
   await kv.delete(cartKey);
+
+  // Track cart cleared metrics
+  Sentry.metrics.count('cart.cleared', 1);
 
   return c.json({
     success: true,

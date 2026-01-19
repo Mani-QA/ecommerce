@@ -114,6 +114,9 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
   const kv = c.env.KV_SESSIONS;
   const sessionId = c.req.header('X-Session-ID');
 
+  // Track order placement start time for performance metrics
+  const orderStartTime = Date.now();
+
   Sentry.addBreadcrumb({
     category: 'order',
     message: 'Order placement initiated',
@@ -230,6 +233,26 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
 
   // Log successful order (will appear in Sentry Logs)
   console.log(`[ORDER] Order ${orderId} created for user ${user.username} - Total: $${totalAmount}, Items: ${orderItems.length}`);
+
+  // Track order metrics
+  const orderProcessingTime = Date.now() - orderStartTime;
+  
+  Sentry.metrics.count('order.placed', 1, {
+    tags: { user_type: user.userType },
+  });
+  
+  Sentry.metrics.gauge('order.total_amount', totalAmount, {
+    tags: { user_type: user.userType },
+  });
+  
+  Sentry.metrics.gauge('order.item_count', orderItems.length, {
+    tags: { user_type: user.userType },
+  });
+  
+  Sentry.metrics.distribution('order.processing_time', orderProcessingTime, {
+    tags: { user_type: user.userType },
+    unit: 'millisecond',
+  });
 
   return c.json(
     {

@@ -72,6 +72,11 @@ productRoutes.get('/:slug', async (c) => {
     result.imageUrl = `/api/images/${result.imageKey}`;
   }
 
+  // Track product views
+  Sentry.metrics.count('product.view', 1, {
+    tags: { slug, stock_status: result.stock > 0 ? 'in_stock' : 'out_of_stock' },
+  });
+
   // Log out-of-stock product access (100% capture)
   if (result.stock === 0) {
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
@@ -79,6 +84,10 @@ productRoutes.get('/:slug', async (c) => {
     const userAgent = c.req.header('User-Agent') || 'unknown';
     
     console.log(`[OUT_OF_STOCK] Product "${result.name}" (ID: ${result.id}) accessed while out of stock - IP: ${ip}, Country: ${country}, UA: ${userAgent.substring(0, 50)}`);
+    
+    Sentry.metrics.count('product.out_of_stock_access', 1, {
+      tags: { product_id: result.id.toString(), country },
+    });
   }
 
   // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
@@ -119,6 +128,11 @@ productRoutes.get('/id/:id', async (c) => {
     result.imageUrl = `/api/images/${result.imageKey}`;
   }
 
+  // Track product views by ID
+  Sentry.metrics.count('product.view_by_id', 1, {
+    tags: { product_id: id.toString(), stock_status: result.stock > 0 ? 'in_stock' : 'out_of_stock' },
+  });
+
   // Log out-of-stock product access by ID (100% capture)
   if (result.stock === 0) {
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
@@ -126,6 +140,10 @@ productRoutes.get('/id/:id', async (c) => {
     const userAgent = c.req.header('User-Agent') || 'unknown';
     
     console.log(`[OUT_OF_STOCK] Product "${result.name}" (ID: ${result.id}) accessed while out of stock - IP: ${ip}, Country: ${country}, UA: ${userAgent.substring(0, 50)}`);
+    
+    Sentry.metrics.count('product.out_of_stock_access', 1, {
+      tags: { product_id: result.id.toString(), country },
+    });
   }
 
   // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days

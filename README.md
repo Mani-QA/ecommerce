@@ -231,6 +231,7 @@ QADemo integrates **Sentry** for comprehensive monitoring and observability, mak
 | **Error Monitoring** | Automatic capture of all application errors with full stack traces |
 | **Performance Tracing** | 20% sample rate for request tracing and performance metrics |
 | **Application Logs** | Centralized logging for authentication, orders, and admin actions |
+| **Metrics & KPIs** | Business metrics tracking (orders, revenue, logins, cart operations) |
 | **Security Monitoring** | Track admin logins with IP address and country/city information |
 | **Product Analytics** | Monitor out-of-stock product access and user behavior |
 
@@ -254,10 +255,22 @@ QADemo integrates **Sentry** for comprehensive monitoring and observability, mak
 - **Context**: Each error includes request details, user info, and environment
 - **Source Maps**: Readable stack traces with original TypeScript code
 
+### Key Metrics Tracked
+
+| Metric Category | Examples |
+|-----------------|----------|
+| **Authentication** | Login success/failure rates, admin access tracking |
+| **Products** | Product views, out-of-stock access, popular products |
+| **Orders** | Orders placed, revenue, order processing time (p95/p99) |
+| **Cart** | Items added/removed, cart abandonment rate |
+| **Admin** | Stock updates, order status changes, admin productivity |
+
 ### Accessing Sentry
 
 - **Issues**: https://sentry.io/issues/ - View captured errors
-- **Performance**: https://sentry.io/performance/ - Monitor traces and metrics
+- **Logs**: https://sentry.io/explore/logs/ - Application logs
+- **Metrics**: https://sentry.io/metrics/ - Business KPIs and performance metrics
+- **Performance**: https://sentry.io/performance/ - Monitor traces and request timing
 - **Release Tracking**: Each deployment creates a new release with version ID
 
 This makes QADemo ideal for testing monitoring and observability integrations in your automation frameworks.
