@@ -155,10 +155,7 @@ cartRoutes.post('/items', zValidator('json', addToCartSchema), async (c) => {
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Track cart metrics
-  Sentry.metrics.count('cart.item_added', 1, {
-    tags: { product_id: productId.toString() },
-  });
-  
+  Sentry.metrics.count('cart.item_added', 1);
   Sentry.metrics.gauge('cart.total_items', totalItems);
 
   return c.json({
@@ -254,10 +251,7 @@ cartRoutes.delete('/items/:productId', async (c) => {
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Track cart removal metrics
-  Sentry.metrics.count('cart.item_removed', 1, {
-    tags: { product_id: productId.toString() },
-  });
-  
+  Sentry.metrics.count('cart.item_removed', 1);
   Sentry.metrics.gauge('cart.total_items', totalItems);
 
   return c.json({

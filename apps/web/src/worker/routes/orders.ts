@@ -237,20 +237,10 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
   // Track order metrics
   const orderProcessingTime = Date.now() - orderStartTime;
   
-  Sentry.metrics.count('order.placed', 1, {
-    tags: { user_type: user.userType },
-  });
-  
-  Sentry.metrics.gauge('order.total_amount', totalAmount, {
-    tags: { user_type: user.userType },
-  });
-  
-  Sentry.metrics.gauge('order.item_count', orderItems.length, {
-    tags: { user_type: user.userType },
-  });
-  
+  Sentry.metrics.count('order.placed', 1);
+  Sentry.metrics.gauge('order.total_amount', totalAmount);
+  Sentry.metrics.gauge('order.item_count', orderItems.length);
   Sentry.metrics.distribution('order.processing_time', orderProcessingTime, {
-    tags: { user_type: user.userType },
     unit: 'millisecond',
   });
 

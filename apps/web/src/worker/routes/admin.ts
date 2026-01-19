@@ -96,13 +96,8 @@ adminRoutes.patch(
     console.log(`[ADMIN] Product ${id} stock updated to ${stock} by ${user.username}`);
 
     // Track admin stock update metrics
-    Sentry.metrics.count('admin.stock_update', 1, {
-      tags: { product_id: id.toString(), admin_user: user.username },
-    });
-    
-    Sentry.metrics.gauge('admin.stock_level', stock, {
-      tags: { product_id: id.toString() },
-    });
+    Sentry.metrics.count('admin.stock_update', 1);
+    Sentry.metrics.gauge('admin.stock_level', stock);
 
     return c.json({
       success: true,
@@ -243,13 +238,7 @@ adminRoutes.patch(
     console.log(`[ADMIN] Order ${orderId} status changed to '${status}' by ${user.username}`);
 
     // Track admin order status update metrics
-    Sentry.metrics.count('admin.order_status_update', 1, {
-      tags: { 
-        order_id: orderId.toString(), 
-        new_status: status,
-        admin_user: user.username 
-      },
-    });
+    Sentry.metrics.count('admin.order_status_update', 1);
 
     return c.json({
       success: true,

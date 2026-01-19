@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { createProductSchema, updateProductSchema } from '@qademo/shared';
@@ -73,9 +74,7 @@ productRoutes.get('/:slug', async (c) => {
   }
 
   // Track product views
-  Sentry.metrics.count('product.view', 1, {
-    tags: { slug, stock_status: result.stock > 0 ? 'in_stock' : 'out_of_stock' },
-  });
+  Sentry.metrics.count('product.view', 1);
 
   // Log out-of-stock product access (100% capture)
   if (result.stock === 0) {
@@ -85,9 +84,7 @@ productRoutes.get('/:slug', async (c) => {
     
     console.log(`[OUT_OF_STOCK] Product "${result.name}" (ID: ${result.id}) accessed while out of stock - IP: ${ip}, Country: ${country}, UA: ${userAgent.substring(0, 50)}`);
     
-    Sentry.metrics.count('product.out_of_stock_access', 1, {
-      tags: { product_id: result.id.toString(), country },
-    });
+    Sentry.metrics.count('product.out_of_stock_access', 1);
   }
 
   // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
@@ -129,9 +126,7 @@ productRoutes.get('/id/:id', async (c) => {
   }
 
   // Track product views by ID
-  Sentry.metrics.count('product.view_by_id', 1, {
-    tags: { product_id: id.toString(), stock_status: result.stock > 0 ? 'in_stock' : 'out_of_stock' },
-  });
+  Sentry.metrics.count('product.view_by_id', 1);
 
   // Log out-of-stock product access by ID (100% capture)
   if (result.stock === 0) {
@@ -141,9 +136,7 @@ productRoutes.get('/id/:id', async (c) => {
     
     console.log(`[OUT_OF_STOCK] Product "${result.name}" (ID: ${result.id}) accessed while out of stock - IP: ${ip}, Country: ${country}, UA: ${userAgent.substring(0, 50)}`);
     
-    Sentry.metrics.count('product.out_of_stock_access', 1, {
-      tags: { product_id: result.id.toString(), country },
-    });
+    Sentry.metrics.count('product.out_of_stock_access', 1);
   }
 
   // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days

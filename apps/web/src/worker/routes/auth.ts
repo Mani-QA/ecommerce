@@ -112,14 +112,10 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
     // Log failed login attempts, especially for admin accounts (100% capture)
     if (userResult.user_type === 'admin') {
       console.log(`[ADMIN_LOGIN_FAILED] ⚠️ FAILED ADMIN LOGIN ATTEMPT - User: ${username} - IP: ${ip}, Country: ${country}`);
-      Sentry.metrics.count('login.failed', 1, {
-        tags: { user_type: 'admin', country, reason: 'invalid_password' },
-      });
+      Sentry.metrics.count('login.failed', 1);
     } else {
       console.log(`[AUTH_FAILED] Failed login attempt for user: ${username} - IP: ${ip}, Country: ${country}`);
-      Sentry.metrics.count('login.failed', 1, {
-        tags: { user_type: userResult.user_type, country, reason: 'invalid_password' },
-      });
+      Sentry.metrics.count('login.failed', 1);
     }
     
     throw errors.invalidCredentials();
@@ -142,16 +138,12 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
   console.log(`[AUTH] Successful login for user: ${username} (ID: ${userResult.id}) - IP: ${ip}, Country: ${country}, City: ${city}`);
 
   // Track login metrics
-  Sentry.metrics.count('login.success', 1, {
-    tags: { user_type: userResult.user_type, country },
-  });
+  Sentry.metrics.count('login.success', 1);
 
   // Special logging for admin logins (100% capture with full details)
   if (userResult.user_type === 'admin') {
     console.log(`[ADMIN_LOGIN] ⚠️ ADMIN ACCESS - User: ${username} (ID: ${userResult.id}) - IP: ${ip}, Country: ${country}, City: ${city}, User-Agent: ${userAgent.substring(0, 100)}`);
-    Sentry.metrics.count('login.admin', 1, {
-      tags: { country, city },
-    });
+    Sentry.metrics.count('login.admin', 1);
   }
 
   // Generate tokens
