@@ -466,24 +466,111 @@ pnpm run deploy
 
 | Decision | Rationale |
 |----------|-----------|
-| **Workers over Pages** | Unified deployment, full feature access, better local dev |
+| **Single Cloudflare Worker** | Unified frontend (Vite React static assets) and backend (Hono API) in a single deployment |
 | **Hono Framework** | Ultrafast, Express-like API, native Workers support |
 | **D1 for Database** | SQLite at the edge, zero cold starts, automatic replication |
-| **KV for Sessions** | Sub-millisecond reads, perfect for session/cart data |
+| **Real-time Inventory** | Dynamic routes (products, auth, cart, orders) bypass edge cache to prevent stale inventory |
 | **R2 for Images** | S3-compatible, no egress fees, global distribution |
+| **Google Identity Services** | Standard GIS OAuth integration for seamless Google Sign-In |
 | **Zustand for State** | Minimal bundle size, simple API, persistence support |
 | **React Query** | Automatic caching, background refetching, optimistic updates |
 
 ---
 
-## 🤝 Contributing
+## 🚀 Functional Features
 
-This project is designed for educational purposes. Feel free to:
+- **User Registration (Signup)**:
+  - Register with email, phone number, secure password, and optional custom username.
+  - Automatic unique username generation from email prefix when omitted.
+  - Password strength requirements (min 8 chars, uppercase, digit).
+  - Web Crypto PBKDF2 password hashing.
+  - Immediate auto-login upon registration.
+- **Sign In with Google**:
+  - Google Identity Services (GIS) client integration.
+  - Backend Google ID token verification via tokeninfo API.
+  - Automatic account creation for new Google users or profile linking for existing email accounts.
+- **Flexible Authentication**:
+  - Sign in using either username OR email with password.
+  - JWT access tokens + HTTP-only, secure, SameSite refresh token cookies.
+  - Pre-seeded test accounts (`standard_user`, `admin_user`, `locked_user`).
+- **Product Catalog & Real-time Active Filtering**:
+  - Only active products (`is_active = 1`) are exposed to customer catalog endpoints.
+  - Real-time catalog updates directly from Cloudflare D1 without stale 24-hour edge caching.
+- **Shopping Cart & Checkout**:
+  - Session-based and user-based cart persistence.
+  - Simulated payment checkout with test credit card numbers.
+- **Order Management**:
+  - Order creation, order tracking, and order history per authenticated user.
+- **Admin Dashboard**:
+  - Real-time inventory management (update stock, edit product, toggle active/inactive status).
+  - Order status updates (pending, processing, shipped, delivered, cancelled).
 
-1. Fork the repository
-2. Add new test scenarios
-3. Improve documentation
-4. Submit pull requests
+---
+
+## 📖 User Guide
+
+### 1. User Registration
+1. Navigate to **https://qademo.com/signup** or click **Sign Up** in the header.
+2. Enter your email address, phone number (at least 7 digits), and password.
+3. (Optional) Provide a custom username.
+4. Click **Create Account** to register and automatically sign in.
+
+### 2. Google Sign-In
+1. On **https://qademo.com/login** or **https://qademo.com/signup**, click **Sign in with Google** or **Continue with Google**.
+2. Select your Google account in the popup dialog.
+3. You will be authenticated and redirected to the catalog.
+
+### 3. Logging In with Credentials
+1. Navigate to **https://qademo.com/login** or click **Sign In**.
+2. In the **Username or Email** field, enter your registered username or email address.
+3. Enter your password and click **Sign In**.
+4. For quick testing, click any of the preset buttons in the **Test Credentials** card (`standard_user`, `admin_user`, `locked_user`).
+
+---
+
+## 🏗️ Architecture Information
+
+- **Single Cloudflare Worker**: Both the React frontend (built with Vite into `apps/web/dist`) and Hono backend (`src/worker/index.ts`) run inside a single Cloudflare Worker deployment using Cloudflare Static Assets (`[assets] binding = "ASSETS"`).
+- **Routing**: Client-side SPA routing managed via `react-router-dom` with fallback to `index.html`. API endpoints are routed under `/api/*` via Hono.
+- **Database Schema (Cloudflare D1)**:
+  - `users`: `id`, `username`, `password_hash`, `user_type`, `email`, `phone`, `google_id`, `avatar_url`, `created_at`, `updated_at`.
+  - `products`: `id`, `name`, `slug`, `description`, `price`, `stock`, `image_key`, `is_active`, `created_at`, `updated_at`.
+  - `orders`: `id`, `user_id`, `total_amount`, `status`, `shipping_first_name`, `shipping_last_name`, `shipping_address`, `payment_last_four`, `created_at`, `updated_at`.
+  - `order_items`: `id`, `order_id`, `product_id`, `quantity`, `unit_price`, `created_at`.
+  - `sessions`: `id`, `user_id`, `refresh_token_hash`, `expires_at`, `created_at`.
+- **Data Flow & Caching**:
+  - Dynamic API routes (`/api/products`, `/api/auth`, `/api/cart`, `/api/orders`, `/api/admin`) query D1 directly with `no-cache, no-store` to prevent stale data.
+  - Image assets (`/api/images/*`) are streamed from Cloudflare R2 and cached at edge.
+
+---
+
+## 💻 Tech Stack
+
+- **Runtime & Deployment**: Cloudflare Workers, Cloudflare Static Assets
+- **Backend API**: Hono, Zod, @hono/zod-validator
+- **Database**: Cloudflare D1 (Serverless SQLite)
+- **Object Storage**: Cloudflare R2
+- **Session/Cache Storage**: Cloudflare KV
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Lucide React
+- **State Management**: Zustand, TanStack React Query
+- **Authentication**: JWT (jose), PBKDF2 Web Crypto, Google Identity Services (OAuth 2.0)
+- **Observability**: Sentry for Cloudflare Workers
+
+---
+
+## 🗺️ Pending Features and Roadmap
+
+- [ ] **SMS OTP Verification**: Multi-factor authentication or phone number verification via Twilio/Vonage Cloudflare Worker binding.
+- [ ] **Google OAuth Client ID Production Configuration**: Provision dedicated production Google Cloud OAuth credentials for `qademo.com` in Cloudflare secrets (`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`).
+- [ ] **User Profile Editing**: Frontend page allowing users to update their phone number, shipping addresses, and display avatar.
+- [ ] **Password Reset Flow**: Email verification tokens for self-service password resets.
+
+---
+
+## 🌐 Live Cloudflare Workers URL
+
+- **Production Domain**: [https://qademo.com](https://qademo.com)
+- **Workers Dev URL**: [https://qademo.www5.workers.dev](https://qademo.www5.workers.dev)
 
 ---
 
@@ -491,8 +578,3 @@ This project is designed for educational purposes. Feel free to:
 
 MIT License - feel free to use this project for learning and practice.
 
----
-
-## 🙏 Acknowledgments
-
-Built as a testing playground inspired by [SauceDemo](https://www.saucedemo.com/) - designed to provide a more feature-rich and modern testing environment for QA engineers.

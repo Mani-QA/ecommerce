@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { getAdminPassword } from '@qademo/shared';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function Footer() {
@@ -36,29 +35,33 @@ export default function Footer() {
                   Cart
                 </Link>
               </li>
-              {!isAuthenticated && (
-                <li>
-                  <Link to="/login" className="text-sm hover:text-brand-400 transition-colors">
-                    Sign In
-                  </Link>
-                </li>
-              )}
             </ul>
           </div>
 
-          {/* Test Accounts */}
+          {/* Account */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Test Accounts</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <span className="text-slate-500">Standard:</span> standard_user / standard123
-              </li>
-              <li>
-                <span className="text-slate-500">Locked:</span> locked_user / locked123
-              </li>
-              <li>
-                <span className="text-slate-500">Admin:</span> admin_user / {getAdminPassword()}
-              </li>
+            <h3 className="text-white font-semibold mb-4">Account</h3>
+            <ul className="space-y-2">
+              {!isAuthenticated ? (
+                <>
+                  <li>
+                    <Link to="/login" className="text-sm hover:text-brand-400 transition-colors">
+                      Sign In
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/signup" className="text-sm hover:text-brand-400 transition-colors">
+                      Create Account
+                    </Link>
+                  </li>
+                </>
+              ) : (
+                <li>
+                  <Link to="/orders" className="text-sm hover:text-brand-400 transition-colors">
+                    My Orders
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
         </div>
@@ -78,11 +81,10 @@ export default function Footer() {
               ManiG
             </a>
             {' '}with{' '}
-            <span className="text-red-500" aria-label="love" role="img">❤</span>
+            <span className="text-slate-500">Cloudflare Workers</span>
           </p>
         </div>
       </div>
     </footer>
   );
 }
-

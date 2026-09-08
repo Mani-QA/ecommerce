@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { LogIn, AlertCircle, User, Lock, Info } from 'lucide-react';
+import { LogIn, AlertCircle, User, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getAdminPassword } from '@qademo/shared';
 import { useAuthStore } from '@/stores/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -26,7 +25,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>();
 
@@ -50,11 +48,6 @@ export default function LoginPage() {
     } catch {
       // Error is handled by the store
     }
-  };
-
-  const fillCredentials = (username: string, password: string) => {
-    setValue('username', username);
-    setValue('password', password);
   };
 
   return (
@@ -165,38 +158,6 @@ export default function LoginPage() {
             Create Account
           </Link>
         </p>
-
-        {/* Test Credentials */}
-        <Card className="mt-6" data-testid="test-credentials-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-slate-600 mb-3">
-              <Info className="w-4 h-4" aria-hidden="true" />
-              <span className="font-medium">Test Credentials</span>
-            </div>
-            <div className="grid grid-cols-1 gap-2" data-testid="test-credentials-list" role="list" aria-label="Test credentials">
-              {[
-                { label: 'Standard User', username: 'standard_user', password: 'standard123' },
-                { label: 'Locked User', username: 'locked_user', password: 'locked123' },
-                { label: 'Admin User', username: 'admin_user', password: getAdminPassword() },
-              ].map((cred) => (
-                <button
-                  key={cred.username}
-                  type="button"
-                  onClick={() => fillCredentials(cred.username, cred.password)}
-                  className="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-lg text-sm transition-colors"
-                  data-testid={`test-credential-${cred.username}`}
-                  aria-label={`Fill ${cred.label} credentials`}
-                  role="listitem"
-                >
-                  <span className="font-medium text-slate-900">{cred.label}</span>
-                  <span className="text-slate-500" data-testid={`credential-info-${cred.username}`}>
-                    {cred.username} / {cred.password}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Back to Home */}
         <p className="mt-6 text-center text-sm text-slate-600">

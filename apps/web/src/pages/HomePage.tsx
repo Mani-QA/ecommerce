@@ -168,11 +168,6 @@ export default function HomePage() {
                 </Link>
               )}
             </div>
-            {!isAuthenticated && (
-              <div className="mt-8 text-sm text-brand-200">
-                <p>Test accounts: standard_user / locked_user / admin_user</p>
-              </div>
-            )}
           </motion.div>
         </div>
       </section>
