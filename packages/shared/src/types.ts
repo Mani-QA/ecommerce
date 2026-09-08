@@ -11,6 +11,10 @@ export interface User {
   phone?: string;
   googleId?: string;
   avatarUrl?: string;
+  ipAddress?: string;
+  country?: string;
+  city?: string;
+  location?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +45,13 @@ export interface CartItem {
   product: Product;
 }
 
+/**
+ * Cart {
+  items: CartItem[];
+  totalItems: number;
+  totalAmount: number;
+}
+ */
 export interface Cart {
   items: CartItem[];
   totalItems: number;
@@ -70,6 +81,10 @@ export interface Order {
   shippingLastName: string;
   shippingAddress: string;
   paymentLastFour: string | null;
+  ipAddress?: string;
+  country?: string;
+  city?: string;
+  location?: string;
   items?: OrderItem[];
   createdAt: string;
   updatedAt: string;

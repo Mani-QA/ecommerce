@@ -7,6 +7,7 @@ import { orderRowToOrder } from '../types/bindings';
 import { errors } from '../middleware/error-handler';
 import { authMiddleware } from '../middleware/auth';
 import { noCacheMiddleware } from '../middleware/cache';
+import { getClientGeoInfo } from '../lib/geo';
 
 interface CartData {
   items: Array<{ productId: number; quantity: number }>;
@@ -178,14 +179,17 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
     });
   }
 
+  // Capture client IP address and location from Cloudflare headers
+  const geo = getClientGeoInfo(c);
+
   // Create order in a transaction-like manner
   // D1 doesn't support transactions, so we do our best
   const paymentLastFour = getCardLastFour(payment.cardNumber);
 
   const orderResult = await db
     .prepare(
-      `INSERT INTO orders (user_id, total_amount, status, shipping_first_name, shipping_last_name, shipping_address, payment_last_four)
-       VALUES (?, ?, 'pending', ?, ?, ?, ?)`
+      `INSERT INTO orders (user_id, total_amount, status, shipping_first_name, shipping_last_name, shipping_address, payment_last_four, ip_address, country, city, location)
+       VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       user.id,
@@ -193,7 +197,11 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
       shipping.firstName,
       shipping.lastName,
       shipping.address,
-      paymentLastFour
+      paymentLastFour,
+      geo.ip,
+      geo.country,
+      geo.city,
+      geo.location
     )
     .run();
 
@@ -228,11 +236,11 @@ orderRoutes.post('/', zValidator('json', createOrderSchema), async (c) => {
     category: 'order',
     message: `Order ${orderId} created successfully`,
     level: 'info',
-    data: { orderId, totalAmount, itemCount: orderItems.length },
+    data: { orderId, totalAmount, itemCount: orderItems.length, ip: geo.ip, location: geo.location },
   });
 
-  // Log successful order (will appear in Sentry Logs)
-  console.log(`[ORDER] Order ${orderId} created for user ${user.username} - Total: $${totalAmount}, Items: ${orderItems.length}`);
+  // Log successful order (will appear in Sentry Logs and Cloudflare tail)
+  console.log(`[ORDER] Order ${orderId} created for user ${user.username} - Total: $${totalAmount}, Items: ${orderItems.length} - IP: ${geo.ip}, Country: ${geo.country}, Location: ${geo.location}`);
 
   // Track order metrics
   const orderProcessingTime = Date.now() - orderStartTime;

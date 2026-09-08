@@ -47,6 +47,10 @@ export interface UserRow {
   phone?: string | null;
   google_id?: string | null;
   avatar_url?: string | null;
+  ip_address?: string | null;
+  country?: string | null;
+  city?: string | null;
+  location?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,6 +77,10 @@ export interface OrderRow {
   shipping_last_name: string;
   shipping_address: string;
   payment_last_four: string | null;
+  ip_address?: string | null;
+  country?: string | null;
+  city?: string | null;
+  location?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -104,6 +112,10 @@ export function userRowToUser(row: UserRow): User {
     phone: row.phone ?? undefined,
     googleId: row.google_id ?? undefined,
     avatarUrl: row.avatar_url ?? undefined,
+    ipAddress: row.ip_address ?? undefined,
+    country: row.country ?? undefined,
+    city: row.city ?? undefined,
+    location: row.location ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -135,6 +147,10 @@ export function orderRowToOrder(row: OrderRow) {
     shippingLastName: row.shipping_last_name,
     shippingAddress: row.shipping_address,
     paymentLastFour: row.payment_last_four,
+    ipAddress: row.ip_address ?? undefined,
+    country: row.country ?? undefined,
+    city: row.city ?? undefined,
+    location: row.location ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

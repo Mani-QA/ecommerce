@@ -22,6 +22,7 @@ import {
 } from '../middleware/auth';
 import { verifyPassword, hashPassword, isNewHashFormat } from '../services/password';
 import { noCacheMiddleware } from '../middleware/cache';
+import { getClientGeoInfo } from '../lib/geo';
 
 const authRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -145,12 +146,25 @@ authRoutes.post('/signup', zValidator('json', signupSchema), async (c) => {
   // Hash password securely with Web Crypto PBKDF2
   const passwordHash = await hashPassword(password);
 
+  // Capture client IP address and location from Cloudflare headers
+  const geo = getClientGeoInfo(c);
+
   // Insert user into D1
   const insertResult = await db
     .prepare(
-      'INSERT INTO users (username, password_hash, user_type, email, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime("now"), datetime("now"))'
+      'INSERT INTO users (username, password_hash, user_type, email, phone, ip_address, country, city, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))'
     )
-    .bind(finalUsername, passwordHash, 'standard', normalizedEmail, phone.trim())
+    .bind(
+      finalUsername,
+      passwordHash,
+      'standard',
+      normalizedEmail,
+      phone.trim(),
+      geo.ip,
+      geo.country,
+      geo.city,
+      geo.location
+    )
     .run();
 
   const newUserId = insertResult.meta.last_row_id;
@@ -164,15 +178,17 @@ authRoutes.post('/signup', zValidator('json', signupSchema), async (c) => {
     phone: phone.trim(),
     google_id: null,
     avatar_url: null,
+    ip_address: geo.ip,
+    country: geo.country,
+    city: geo.city,
+    location: geo.location,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
   const authData = await createSessionAndTokens(c, newUserRow);
 
-  const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-  const country = c.req.header('CF-IPCountry') || 'unknown';
-  console.log(`[AUTH] Successful signup for user: ${finalUsername} (ID: ${newUserId}, Email: ${normalizedEmail}) - IP: ${ip}, Country: ${country}`);
+  console.log(`[AUTH] Successful signup for user: ${finalUsername} (ID: ${newUserId}, Email: ${normalizedEmail}) - IP: ${geo.ip}, Country: ${geo.country}, Location: ${geo.location}`);
 
   Sentry.metrics.count('signup.success', 1);
 
@@ -306,10 +322,11 @@ authRoutes.post('/google', zValidator('json', googleAuthSchema), async (c) => {
     }
 
     const dummyPasswordHash = `oauth:google:${generateId(24)}`;
+    const geo = getClientGeoInfo(c);
 
     const insertResult = await db
       .prepare(
-        'INSERT INTO users (username, password_hash, user_type, email, google_id, avatar_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))'
+        'INSERT INTO users (username, password_hash, user_type, email, google_id, avatar_url, ip_address, country, city, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))'
       )
       .bind(
         finalUsername,
@@ -317,7 +334,11 @@ authRoutes.post('/google', zValidator('json', googleAuthSchema), async (c) => {
         'standard',
         normalizedEmail,
         payload.sub,
-        payload.picture || null
+        payload.picture || null,
+        geo.ip,
+        geo.country,
+        geo.city,
+        geo.location
       )
       .run();
 
@@ -332,6 +353,10 @@ authRoutes.post('/google', zValidator('json', googleAuthSchema), async (c) => {
       phone: null,
       google_id: payload.sub,
       avatar_url: payload.picture || null,
+      ip_address: geo.ip,
+      country: geo.country,
+      city: geo.city,
+      location: geo.location,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -344,9 +369,8 @@ authRoutes.post('/google', zValidator('json', googleAuthSchema), async (c) => {
 
   const authData = await createSessionAndTokens(c, userResult);
 
-  const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-  const country = c.req.header('CF-IPCountry') || 'unknown';
-  console.log(`[AUTH] Google signin successful for user: ${userResult.username} (ID: ${userResult.id}, Email: ${normalizedEmail}) - IP: ${ip}, Country: ${country}`);
+  const geo = getClientGeoInfo(c);
+  console.log(`[AUTH] Google signin successful for user: ${userResult.username} (ID: ${userResult.id}, Email: ${normalizedEmail}) - IP: ${geo.ip}, Country: ${geo.country}, Location: ${geo.location}`);
 
   Sentry.metrics.count('login.google.success', 1);
 

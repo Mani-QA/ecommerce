@@ -327,6 +327,9 @@ export default function AdminPage() {
                             Customer
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Location
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                             Date
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -344,6 +347,18 @@ export default function AdminPage() {
                               #{order.id}
                             </td>
                             <td className="px-6 py-4 text-slate-600">{order.username}</td>
+                            <td className="px-6 py-4 text-xs text-slate-500">
+                              {order.location ? (
+                                <div>
+                                  <span className="font-medium text-slate-700">{order.location}</span>
+                                  {order.ipAddress && (
+                                    <div className="text-[11px] text-slate-400">IP: {order.ipAddress}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 text-slate-600">
                               {formatDateTime(order.createdAt)}
                             </td>
