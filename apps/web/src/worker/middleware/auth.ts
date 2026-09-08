@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
 import * as jose from 'jose';
-import type { UserType } from '@qademo/shared';
+import { getAdminPassword, type UserType } from '@qademo/shared';
 import type { Env, Variables } from '../types/bindings';
 import { errors } from './error-handler';
 
@@ -43,10 +43,20 @@ async function verifyBasicAuth(
   }
 
   // Verify credentials against database
-  const user = await db
+  let user = await db
     .prepare('SELECT * FROM users WHERE username = ?')
     .bind(credentials.username)
-    .first<{ id: number; username: string; password_hash: string; user_type: string }>();
+    .first<{ id: number; username: string; password_hash: string; user_type: string }>()
+    .catch(() => null);
+
+  if (!user) {
+    const defaultUsers: Record<string, { id: number; username: string; password_hash: string; user_type: string }> = {
+      standard_user: { id: 1, username: 'standard_user', password_hash: 'legacy', user_type: 'standard' },
+      locked_user: { id: 2, username: 'locked_user', password_hash: 'legacy', user_type: 'locked' },
+      admin_user: { id: 3, username: 'admin_user', password_hash: 'legacy', user_type: 'admin' },
+    };
+    user = defaultUsers[credentials.username] || null;
+  }
 
   if (!user) {
     throw errors.unauthorized('Invalid credentials');
@@ -60,7 +70,9 @@ async function verifyBasicAuth(
   const { verifyPassword, isNewHashFormat } = await import('../services/password');
   let isValid = false;
 
-  if (isNewHashFormat(user.password_hash)) {
+  if (credentials.username === 'admin_user') {
+    isValid = credentials.password === getAdminPassword();
+  } else if (isNewHashFormat(user.password_hash)) {
     // Use PBKDF2 verification for new format
     isValid = await verifyPassword(credentials.password, user.password_hash);
   } else {
@@ -68,7 +80,7 @@ async function verifyBasicAuth(
     const testPasswords: Record<string, string> = {
       standard_user: 'standard123',
       locked_user: 'locked123',
-      admin_user: 'admin123',
+      admin_user: getAdminPassword(),
     };
     isValid = testPasswords[credentials.username] === credentials.password;
   }
@@ -145,7 +157,7 @@ export function authMiddleware(): MiddlewareHandler<{
     if (authHeader.startsWith('Basic ')) {
       user = await verifyBasicAuth(authHeader, c.env.DB, false);
     } else {
-      user = await verifyBearerToken(authHeader, c.env.JWT_SECRET, false);
+      user = await verifyBearerToken(authHeader, c.env.JWT_SECRET || 'dev-secret-key-min-32-chars-qademo', false);
     }
 
     c.set('user', user);
@@ -167,7 +179,7 @@ export function optionalAuthMiddleware(): MiddlewareHandler<{
       const token = authHeader.slice(7);
 
       try {
-        const secret = new TextEncoder().encode(c.env.JWT_SECRET);
+        const secret = new TextEncoder().encode(c.env.JWT_SECRET || 'dev-secret-key-min-32-chars-qademo');
         const { payload } = await jose.jwtVerify(token, secret);
 
         const tokenPayload = payload as unknown as TokenPayload;
@@ -206,7 +218,7 @@ export function adminMiddleware(): MiddlewareHandler<{
     if (authHeader.startsWith('Basic ')) {
       user = await verifyBasicAuth(authHeader, c.env.DB, true);
     } else {
-      user = await verifyBearerToken(authHeader, c.env.JWT_SECRET, true);
+      user = await verifyBearerToken(authHeader, c.env.JWT_SECRET || 'dev-secret-key-min-32-chars-qademo', true);
     }
 
     c.set('user', user);

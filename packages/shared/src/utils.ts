@@ -121,3 +121,15 @@ export function formatDateTime(dateString: string): string {
   });
 }
 
+/**
+ * Calculate dynamic Admin password ($Admin<ddmmyyyy>)
+ * Format: $AdminDDMMYYYY where DD, MM are 2-digit zero-padded numbers
+ */
+export function getAdminPassword(date: Date = new Date()): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `$Admin${day}${month}${year}`;
+}
+
+

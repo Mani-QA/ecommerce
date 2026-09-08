@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { UserType } from '@qademo/shared';
+import type { UserType, SignupInput } from '@qademo/shared';
 import { api } from '@/lib/api';
 
 interface AuthUser {
   id: number;
   username: string;
   userType: UserType;
+  email?: string;
+  phone?: string;
+  avatarUrl?: string;
 }
 
 interface AuthState {
@@ -15,6 +18,8 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
+  signup: (data: SignupInput) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -40,6 +45,40 @@ export const useAuthStore = create<AuthState>()(
           });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Login failed';
+          set({ isLoading: false, error: message });
+          throw error;
+        }
+      },
+
+      signup: async (data: SignupInput) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.signup(data);
+          set({
+            user: response.user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Signup failed';
+          set({ isLoading: false, error: message });
+          throw error;
+        }
+      },
+
+      loginWithGoogle: async (credential: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.loginWithGoogle(credential);
+          set({
+            user: response.user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Google sign-in failed';
           set({ isLoading: false, error: message });
           throw error;
         }

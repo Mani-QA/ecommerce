@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { getAdminPassword } from '@qademo/shared';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function Footer() {
@@ -56,7 +57,7 @@ export default function Footer() {
                 <span className="text-slate-500">Locked:</span> locked_user / locked123
               </li>
               <li>
-                <span className="text-slate-500">Admin:</span> admin_user / admin123
+                <span className="text-slate-500">Admin:</span> admin_user / {getAdminPassword()}
               </li>
             </ul>
           </div>

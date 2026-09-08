@@ -6,6 +6,7 @@ import type {
   Cart,
   AuthResponse,
   CreateOrderInput,
+  SignupInput,
 } from '@qademo/shared';
 
 // API Configuration - externalized for test automation
@@ -92,6 +93,28 @@ class ApiClient {
     });
     this.accessToken = response.accessToken;
     return response;
+  }
+
+  async signup(data: SignupInput): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    this.accessToken = response.accessToken;
+    return response;
+  }
+
+  async loginWithGoogle(credential: string): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    this.accessToken = response.accessToken;
+    return response;
+  }
+
+  async getGoogleConfig(): Promise<{ clientId: string }> {
+    return this.request<{ clientId: string }>('/auth/google/config');
   }
 
   async logout(): Promise<void> {

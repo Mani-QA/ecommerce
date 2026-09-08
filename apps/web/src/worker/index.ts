@@ -120,7 +120,17 @@ export default Sentry.withSentry<Env>(
 
       // Handle API requests with Hono
       if (url.pathname.startsWith('/api')) {
-        // Check if this is a cacheable GET request
+        // Dynamic API endpoints (products, auth, cart, orders, admin) - never cache and evict stale cache
+        if (
+          !url.pathname.startsWith('/api/images') &&
+          !url.pathname.startsWith('/api/health')
+        ) {
+          const cacheKey = new Request(url.toString(), request);
+          ctx.waitUntil(caches.default.delete(cacheKey));
+          return app.fetch(request, env, ctx);
+        }
+
+        // Check if this is a cacheable GET request (images / health)
         if (request.method === 'GET') {
           const cacheKey = new Request(url.toString(), request);
           const cfCache = caches.default;

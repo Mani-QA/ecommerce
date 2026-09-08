@@ -21,6 +21,10 @@ export interface Env {
   // Sentry configuration
   SENTRY_DSN: string;
   CF_VERSION_METADATA: { id: string; tag?: string; timestamp?: string };
+
+  // Google OAuth configuration
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 // Context variables set by middleware
@@ -40,6 +44,9 @@ export interface UserRow {
   password_hash: string;
   user_type: string;
   email: string | null;
+  phone?: string | null;
+  google_id?: string | null;
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +101,9 @@ export function userRowToUser(row: UserRow): User {
     username: row.username,
     userType: row.user_type as UserType,
     email: row.email ?? undefined,
+    phone: row.phone ?? undefined,
+    googleId: row.google_id ?? undefined,
+    avatarUrl: row.avatar_url ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

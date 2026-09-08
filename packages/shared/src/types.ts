@@ -8,6 +8,9 @@ export interface User {
   username: string;
   userType: UserType;
   email?: string;
+  phone?: string;
+  googleId?: string;
+  avatarUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -96,6 +99,9 @@ export interface AuthResponse {
     id: number;
     username: string;
     userType: UserType;
+    email?: string;
+    phone?: string;
+    avatarUrl?: string;
   };
 }
 

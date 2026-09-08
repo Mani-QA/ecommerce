@@ -82,7 +82,15 @@ export default function Navbar() {
                   data-testid="navbar-username-link"
                   aria-label={`View orders for ${user?.username}`}
                 >
-                  <User className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.username}
+                      className="w-5 h-5 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                  )}
                   <span className="text-sm font-medium text-slate-700" data-testid="navbar-username">{user?.username}</span>
                 </Link>
                 <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="navbar-logout-button" aria-label="Logout">
@@ -90,11 +98,18 @@ export default function Navbar() {
                 </Button>
               </div>
             ) : (
-              <Link to="/login" data-testid="navbar-signin-link">
-                <Button variant="primary" size="sm" aria-label="Sign in">
-                  Sign In
-                </Button>
-              </Link>
+              <div className="flex items-center space-x-2">
+                <Link to="/login" data-testid="navbar-signin-link">
+                  <Button variant="ghost" size="sm" aria-label="Sign in">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup" data-testid="navbar-signup-link">
+                  <Button variant="primary" size="sm" aria-label="Sign up">
+                    Sign Up
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
 
@@ -177,15 +192,26 @@ export default function Navbar() {
                   </button>
                 </>
               ) : (
-                <Link
-                  to="/login"
-                  className="block px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 rounded-lg"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  data-testid="navbar-mobile-signin-link"
-                  role="menuitem"
-                >
-                  Sign In
-                </Link>
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <Link
+                    to="/login"
+                    className="block px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    data-testid="navbar-mobile-signin-link"
+                    role="menuitem"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="block px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg text-center font-semibold"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    data-testid="navbar-mobile-signup-link"
+                    role="menuitem"
+                  >
+                    Create Account
+                  </Link>
+                </div>
               )}
             </div>
           </motion.div>

@@ -19,7 +19,7 @@ productRoutes.get('/', async (c) => {
   const db = c.env.DB;
 
   const { results } = await db
-    .prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY name')
+    .prepare("SELECT * FROM products WHERE (is_active = 1 OR is_active = '1') ORDER BY name")
     .all<ProductRow>();
 
   const products = (results as ProductRow[]).map((row) => {
@@ -31,10 +31,9 @@ productRoutes.get('/', async (c) => {
     return product;
   });
 
-  // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
-  c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
-  c.header('CDN-Cache-Control', 'public, max-age=86400');
-  c.header('Vary', 'Accept-Encoding');
+  // Real-time active status - prevent stale edge caching
+  c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  c.header('CDN-Cache-Control', 'no-store');
 
   return c.json({
     success: true,
@@ -59,13 +58,12 @@ productRoutes.get('/:slug', async (c) => {
   }
 
   const product = await db
-    .prepare('SELECT * FROM products WHERE slug = ? AND is_active = 1')
+    .prepare("SELECT * FROM products WHERE slug = ? AND (is_active = 1 OR is_active = '1')")
     .bind(slug)
     .first<ProductRow>();
 
   if (!product) {
-    // Cache 404 for non-existent products (public resource)
-    throw errors.notFoundCached('Product');
+    throw errors.notFound('Product');
   }
 
   const result = productRowToProduct(product);
@@ -87,10 +85,8 @@ productRoutes.get('/:slug', async (c) => {
     Sentry.metrics.count('product.out_of_stock_access', 1);
   }
 
-  // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days while revalidating
-  c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
-  c.header('CDN-Cache-Control', 'public, max-age=86400');
-  c.header('Vary', 'Accept-Encoding');
+  c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  c.header('CDN-Cache-Control', 'no-store');
 
   return c.json({
     success: true,
@@ -100,7 +96,7 @@ productRoutes.get('/:slug', async (c) => {
 
 /**
  * GET /api/products/id/:id
- * Get product by ID (for cart/order lookups) with aggressive CDN caching (24 hours)
+ * Get product by ID (for cart/order lookups)
  */
 productRoutes.get('/id/:id', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
@@ -111,13 +107,12 @@ productRoutes.get('/id/:id', async (c) => {
   }
 
   const product = await db
-    .prepare('SELECT * FROM products WHERE id = ?')
+    .prepare("SELECT * FROM products WHERE id = ? AND (is_active = 1 OR is_active = '1')")
     .bind(id)
     .first<ProductRow>();
 
   if (!product) {
-    // Cache 404 for non-existent products (public resource)
-    throw errors.notFoundCached('Product');
+    throw errors.notFound('Product');
   }
 
   const result = productRowToProduct(product);
@@ -139,9 +134,8 @@ productRoutes.get('/id/:id', async (c) => {
     Sentry.metrics.count('product.out_of_stock_access', 1);
   }
 
-  // Aggressive CDN edge caching: 24 hours fresh, serve stale for up to 7 days
-  c.header('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
-  c.header('CDN-Cache-Control', 'public, max-age=86400');
+  c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  c.header('CDN-Cache-Control', 'no-store');
 
   return c.json({
     success: true,

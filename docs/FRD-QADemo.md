@@ -54,7 +54,7 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 |----------|----------|-----------|-------------------|
 | `standard_user` | `standard123` | standard | Successful login, redirects to catalog |
 | `locked_user` | `locked123` | locked | Login fails with "Account is locked" error |
-| `admin_user` | `admin123` | admin | Successful login, Admin link visible in navbar |
+| `admin_user` | `$Admin<ddmmyyyy>` | admin | Successful login, Admin link visible in navbar (dynamic: `$Admin` + `DDMMYYYY`) |
 
 ---
 
@@ -102,7 +102,7 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 #### FR-AUTH-005: Admin User Login
 - **Description:** Admin user can login and access admin features
 - **Precondition:** User is on login page
-- **Input:** Username: `admin_user`, Password: `admin123`
+- **Input:** Username: `admin_user`, Password: `$Admin<ddmmyyyy>` (calculated based on current date DDMMYYYY)
 - **Expected Result:**
   - Login succeeds
   - User redirected to catalog

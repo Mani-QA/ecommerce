@@ -14,7 +14,7 @@ Built with modern technologies: React, Hono, and Cloudflare Workers with Static 
 |----------|----------|------|-------------|
 | `standard_user` | `standard123` | User | Normal user with full access |
 | `locked_user` | `locked123` | User | Account is locked (login fails) |
-| `admin_user` | `admin123` | Admin | Full admin access + dashboard |
+| `admin_user` | `$Admin<ddmmyyyy>` | Admin | Full admin access + dashboard (dynamic: `$Admin` + `DDMMYYYY`) |
 
 ---
 

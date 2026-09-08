@@ -4,11 +4,39 @@ import { z } from 'zod';
  * Authentication Schemas
  */
 export const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
+  username: z.string().trim().min(1, 'Username or email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
+export const signupSchema = z.object({
+  email: z.string().trim().email('Please enter a valid email address').max(255),
+  phone: z
+    .string()
+    .trim()
+    .min(7, 'Phone number must be at least 7 digits')
+    .max(20, 'Phone number is too long')
+    .regex(/^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/, 'Please enter a valid phone number'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  username: z
+    .string()
+    .trim()
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username cannot exceed 30 characters')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
+    .optional(),
+});
+
+export const googleAuthSchema = z.object({
+  credential: z.string().min(1, 'Google credential token is required'),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
+export type SignupInput = z.infer<typeof signupSchema>;
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
 
 /**
  * Product Schemas

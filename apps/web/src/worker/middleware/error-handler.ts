@@ -161,6 +161,10 @@ export const errors = {
 
   cartEmpty: () => new ApiError('CART_EMPTY', 'Cart is empty', 400),
 
+  badRequest: (message = 'Bad request') => new ApiError('BAD_REQUEST', message, 400),
+
+  conflict: (message = 'Conflict') => new ApiError('CONFLICT', message, 409),
+
   internal: (message = 'Internal server error') =>
     new ApiError('INTERNAL_ERROR', message, 500),
 };

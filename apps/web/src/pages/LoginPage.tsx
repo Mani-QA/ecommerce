@@ -3,10 +3,12 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { LogIn, AlertCircle, User, Lock, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getAdminPassword } from '@qademo/shared';
 import { useAuthStore } from '@/stores/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card, { CardContent } from '@/components/ui/Card';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 interface LoginForm {
   username: string;
@@ -91,15 +93,32 @@ export default function LoginPage() {
         {/* Login Form */}
         <Card data-testid="login-form-card">
           <CardContent className="p-6">
+            {/* Google Sign-In */}
+            <div className="mb-6">
+              <GoogleSignInButton
+                mode="signin"
+                onSuccess={() => navigate(from, { replace: true })}
+                onError={(msg) => setError(msg)}
+              />
+            </div>
+
+            <div className="relative flex py-2 items-center mb-6">
+              <div className="flex-grow border-t border-slate-200" />
+              <span className="flex-shrink mx-4 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                or sign in with password
+              </span>
+              <div className="flex-grow border-t border-slate-200" />
+            </div>
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" data-testid="login-form" role="form" aria-label="Login form">
               <div className="relative">
                 <Input
-                  label="Username"
-                  {...register('username', { required: 'Username is required' })}
+                  label="Username or Email"
+                  {...register('username', { required: 'Username or email is required' })}
                   error={errors.username?.message}
-                  placeholder="Enter your username"
+                  placeholder="Enter your username or email"
                   data-testid="username-input"
-                  aria-label="Username"
+                  aria-label="Username or email"
                   autoComplete="username"
                 />
                 <User className="absolute right-4 top-[42px] w-5 h-5 text-slate-400" aria-hidden="true" />
@@ -135,6 +154,18 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
+        {/* Create Account Link */}
+        <p className="mt-6 text-center text-sm text-slate-600">
+          Don't have an account?{' '}
+          <Link
+            to="/signup"
+            className="text-brand-600 hover:text-brand-700 font-semibold transition-colors"
+            data-testid="sign-up-link"
+          >
+            Create Account
+          </Link>
+        </p>
+
         {/* Test Credentials */}
         <Card className="mt-6" data-testid="test-credentials-card">
           <CardContent className="p-4">
@@ -146,7 +177,7 @@ export default function LoginPage() {
               {[
                 { label: 'Standard User', username: 'standard_user', password: 'standard123' },
                 { label: 'Locked User', username: 'locked_user', password: 'locked123' },
-                { label: 'Admin User', username: 'admin_user', password: 'admin123' },
+                { label: 'Admin User', username: 'admin_user', password: getAdminPassword() },
               ].map((cred) => (
                 <button
                   key={cred.username}

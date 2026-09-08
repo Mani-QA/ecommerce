@@ -50,7 +50,7 @@ curl -X GET https://qademo.com/api/orders \
 |---------------|--------------|------------------------------------------|----------|
 | standard_user | standard123  | `c3RhbmRhcmRfdXNlcjpzdGFuZGFyZDEyMw==`   | Customer |
 | locked_user   | locked123    | `bG9ja2VkX3VzZXI6bG9ja2VkMTIz`           | Customer (Locked) |
-| admin_user    | admin123     | `YWRtaW5fdXNlcjphZG1pbjEyMw==`           | Admin    |
+| admin_user    | `$Admin<ddmmyyyy>` | Dynamic (`admin_user:$Admin<ddmmyyyy>`) | Admin    |
 
 **Generate your own:**
 ```bash
@@ -148,7 +148,7 @@ Use the refresh token to get a new access token:
 |-------------------|--------------|----------|----------------------------------|
 | `standard_user`   | `standard123`| Customer | Standard user for testing        |
 | `locked_user`     | `locked123`  | Customer | User with locked account (login fails) |
-| `admin_user`      | `admin123`   | Admin    | Full admin access                |
+| `admin_user`      | `$Admin<ddmmyyyy>` | Admin    | Full admin access (dynamic: `$Admin` + `DDMMYYYY`) |
 
 ---
 

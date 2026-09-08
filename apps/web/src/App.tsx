@@ -14,6 +14,7 @@ const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
 const OrderConfirmationPage = lazy(() => import('./pages/OrderConfirmationPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -58,6 +59,14 @@ function App() {
           element={
             <Suspense fallback={<LoadingSpinner />}>
               <LoginPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="signup"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <SignupPage />
             </Suspense>
           }
         />
