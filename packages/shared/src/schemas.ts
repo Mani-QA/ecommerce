@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BULK_DELETE_ID_LIMIT } from './types';
 
 /**
  * Authentication Schemas
@@ -112,6 +113,85 @@ export const updateOrderStatusSchema = z.object({
   status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']),
 });
 
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isIsoDate(value: string): boolean {
+  if (!ISO_DATE_PATTERN.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+const optionalQueryText = z.preprocess((value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
+}, z.string().max(255).optional());
+
+const optionalIsoDate = z.preprocess(
+  (value) => (value === '' || value === undefined || value === null ? undefined : value),
+  z.string().refine(isIsoDate, 'Use a valid date in YYYY-MM-DD format').optional()
+);
+
+export const adminProductQuerySchema = z
+  .object({
+    name: optionalQueryText,
+    from: optionalIsoDate,
+    to: optionalIsoDate,
+    sort: z.preprocess(
+      (value) => (value === '' || value === undefined || value === null ? undefined : value),
+      z.enum(['createdAt', 'name']).default('createdAt')
+    ),
+    direction: z.preprocess(
+      (value) => (value === '' || value === undefined || value === null ? undefined : value),
+      z.enum(['asc', 'desc']).default('desc')
+    ),
+    page: z.preprocess(
+      (value) => (value === '' || value === undefined || value === null ? undefined : value),
+      z.coerce.number().int().min(1).max(1000).default(1)
+    ),
+  })
+  .refine((value) => !value.from || !value.to || value.from <= value.to, {
+    message: 'Start date must be on or before end date',
+    path: ['from'],
+  });
+
+const productMatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255).optional(),
+    from: z.string().refine(isIsoDate, 'Use a valid date in YYYY-MM-DD format').optional(),
+    to: z.string().refine(isIsoDate, 'Use a valid date in YYYY-MM-DD format').optional(),
+  })
+  .refine((value) => Boolean(value.name || value.from || value.to), {
+    message: 'Provide a name or a date range',
+    path: ['name'],
+  })
+  .refine((value) => !value.from || !value.to || value.from <= value.to, {
+    message: 'Start date must be on or before end date',
+    path: ['from'],
+  });
+
+export const bulkDeleteProductsSchema = z
+  .object({
+    ids: z.array(z.number().int().positive()).min(1).max(BULK_DELETE_ID_LIMIT).optional(),
+    match: productMatchSchema.optional(),
+  })
+  .refine((value) => Boolean(value.ids?.length || value.match), {
+    message: 'Select products or provide a name or date filter',
+    path: ['ids'],
+  });
+
 export type UpdateStockInput = z.infer<typeof updateStockSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+export type AdminProductQuery = z.infer<typeof adminProductQuerySchema>;
+export type BulkDeleteProductsInput = z.infer<typeof bulkDeleteProductsSchema>;
 

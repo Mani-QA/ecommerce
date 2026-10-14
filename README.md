@@ -122,7 +122,8 @@ curl -X PATCH https://qademo.com/api/admin/products/1/stock \
 - `POST /api/orders` - Place order (checkout)
 
 #### Admin APIs (Admin Authentication Required)
-- `GET /api/admin/products` - List all products (including inactive)
+- `GET /api/admin/products` - List products (including inactive), with name/date filters and date sorting
+- `POST /api/admin/products/bulk-delete` - Delete selected products, or products matching a name or created-date filter
 - `PATCH /api/admin/products/:id/stock` - Update product stock
 - `GET /api/admin/orders` - Get all orders
 - `GET /api/admin/orders/:id` - Get order details
@@ -155,7 +156,7 @@ curl -X PATCH https://qademo.com/api/admin/products/1/stock \
 
 ### Admin Features
 - **Dashboard** - Overview stats (orders, revenue, products)
-- **Product Management** - Add, edit, update stock, upload images
+- **Product Management** - Add, edit, update stock, upload images, and bulk-delete products by the date they were added
 - **Order Management** - View all orders, update order status
 - **Inventory Control** - Real-time stock updates
 
@@ -446,7 +447,8 @@ pnpm run deploy
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/admin/stats` | Dashboard statistics |
-| GET | `/api/admin/products` | All products with full details |
+| GET | `/api/admin/products` | Products, with optional `name`, `from`, `to`, `sort`, `direction`, and `page` |
+| POST | `/api/admin/products/bulk-delete` | Delete selected ids or products matching a name/date filter |
 | GET | `/api/admin/orders` | All orders |
 | PATCH | `/api/admin/orders/:id/status` | Update order status |
 
@@ -537,6 +539,8 @@ pnpm run deploy
   - Order creation, order tracking, and order history per authenticated user.
 - **Admin Dashboard**:
   - Real-time inventory management (update stock, edit product, toggle active/inactive status).
+  - Inventory filters for product name and created date, with sort by date added or name.
+  - Bulk delete for selected products or every product matching the current name/date filter. Products used in an order are deactivated instead of removed.
   - Order status updates (pending, processing, shipped, delivered, cancelled).
 
 ---

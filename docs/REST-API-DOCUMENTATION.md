@@ -716,13 +716,24 @@ All endpoints in this section require **Admin** authentication.
 
 **Endpoint:** `GET /api/admin/products`
 
-**Description:** List all products including inactive ones
+**Description:** List products, including inactive ones. Filter by name or the date the product was added, and sort by that date or by name. Dates are inclusive UTC calendar dates (`YYYY-MM-DD`). Results are paged 100 at a time. The default sort is newest added first.
 
 **Auth Required:** Yes (Admin only)
 
+**Query parameters:**
+
+| Name | Description |
+|------|-------------|
+| `name` | Case-insensitive substring match on the product name |
+| `from` | Include products added on or after this date |
+| `to` | Include products added on or before this date |
+| `sort` | `createdAt` (default) or `name` (case-insensitive) |
+| `direction` | `desc` (default) or `asc` |
+| `page` | Page number, starting at 1 |
+
 **Request:**
 ```bash
-curl -X GET https://qademo.com/api/admin/products \
+curl -X GET "https://qademo.com/api/admin/products?from=2026-10-01&to=2026-10-14&sort=createdAt&direction=desc" \
   -H "Authorization: Bearer <admin-token>"
 ```
 
@@ -737,11 +748,52 @@ curl -X GET https://qademo.com/api/admin/products \
       "slug": "wireless-headphones",
       "price": 199.99,
       "stock": 50,
-      "isActive": true
+      "isActive": true,
+      "createdAt": "2026-10-14 09:15:00"
     }
   ],
   "meta": {
-    "total": 42
+    "total": 42,
+    "page": 1,
+    "limit": 100
+  }
+}
+```
+
+### Bulk Delete Products
+
+**Endpoint:** `POST /api/admin/products/bulk-delete`
+
+**Description:** Permanently delete products that are not part of an order. Products referenced by an order are deactivated (`is_active = 0`) so order history stays intact. Send either selected ids (maximum 500 per request) or a name/date filter. A filter delete removes at most 1,000 products per request and sets `hasMore` when more matches remain. The filter must include a name, a start date, or an end date.
+
+**Auth Required:** Yes (Admin only)
+
+**Request (selected products):**
+```bash
+curl -X POST https://qademo.com/api/admin/products/bulk-delete \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"ids": [18, 19, 20]}'
+```
+
+**Request (products added on a date):**
+```bash
+curl -X POST https://qademo.com/api/admin/products/bulk-delete \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"match": {"from": "2026-10-14", "to": "2026-10-14"}}'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "requested": 3,
+    "deleted": 2,
+    "deactivated": 1,
+    "notFound": 0,
+    "hasMore": false
   }
 }
 ```
@@ -1646,7 +1698,8 @@ Import the pre-configured collection for instant API testing with **automated er
 ### Admin APIs (Admin Only)
 | Method | Endpoint                        | Description                   | Auth   |
 |--------|---------------------------------|-------------------------------|--------|
-| GET    | `/api/admin/products`           | Get all products (incl inactive) | Bearer |
+| GET    | `/api/admin/products`           | List products with name/date filters and sort | Bearer |
+| POST   | `/api/admin/products/bulk-delete` | Bulk delete products by selection or date/name filter | Bearer |
 | PATCH  | `/api/admin/products/:id/stock` | Update product stock          | Bearer |
 | GET    | `/api/admin/orders`             | Get all orders                | Bearer |
 | GET    | `/api/admin/orders/:id`         | Get order details             | Bearer |

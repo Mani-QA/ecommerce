@@ -1,12 +1,19 @@
 import * as Sentry from '@sentry/cloudflare';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import { updateStockSchema, updateOrderStatusSchema } from '@qademo/shared';
-import type { Env, Variables, ProductRow, OrderRow } from '../types/bindings';
-import { productRowToProduct, orderRowToOrder } from '../types/bindings';
+import {
+  adminProductQuerySchema,
+  bulkDeleteProductsSchema,
+  updateStockSchema,
+  updateOrderStatusSchema,
+  type BulkDeleteProductsResult,
+} from '@qademo/shared';
+import type { Env, Variables, OrderRow } from '../types/bindings';
+import { orderRowToOrder } from '../types/bindings';
 import { errors } from '../middleware/error-handler';
 import { adminMiddleware } from '../middleware/auth';
 import { noCacheMiddleware, purgeCache } from '../middleware/cache';
+import { listAdminProducts, removeProductsInBulk } from '../services/product-admin';
 
 const adminRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -16,27 +23,54 @@ adminRoutes.use('*', adminMiddleware());
 
 /**
  * GET /api/admin/products
- * List all products (including inactive) for admin
+ * List products for admin, with name/date filters and date or name sorting.
  */
 adminRoutes.get('/products', async (c) => {
-  const db = c.env.DB;
+  const parsed = adminProductQuerySchema.safeParse({
+    name: c.req.query('name'),
+    from: c.req.query('from'),
+    to: c.req.query('to'),
+    sort: c.req.query('sort'),
+    direction: c.req.query('direction'),
+    page: c.req.query('page'),
+  });
 
-  const products = await db
-    .prepare('SELECT * FROM products ORDER BY name')
-    .all<ProductRow>();
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+
+  const result = await listAdminProducts(c.env.DB, parsed.data);
 
   return c.json({
     success: true,
-    data: products.results.map((row) => {
-      const product = productRowToProduct(row);
-      if (product.imageKey) {
-        product.imageUrl = `/api/images/${product.imageKey}`;
-      }
-      return product;
-    }),
+    data: result.products,
     meta: {
-      total: products.results.length,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
     },
+  });
+});
+
+/**
+ * POST /api/admin/products/bulk-delete
+ * Delete selected products, or every product matching a name/date filter.
+ * Products referenced by orders are deactivated so order history stays intact.
+ */
+adminRoutes.post('/products/bulk-delete', async (c) => {
+  const parsed = bulkDeleteProductsSchema.safeParse(await readJsonBody(c));
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+
+  const user = c.get('user')!;
+  const result = await removeProductsInBulk(c.env.DB, c.env.R2_BUCKET, parsed.data);
+  logBulkDelete(user.username, result);
+  await purgeCache([`${c.req.url.split('/api')[0]}/api/products`]);
+
+  return c.json({
+    success: true,
+    data: result,
   });
 });
 
@@ -298,6 +332,22 @@ adminRoutes.get('/stats', async (c) => {
     },
   });
 });
+
+async function readJsonBody(c: { req: { json: () => Promise<unknown> } }): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch (error) {
+    console.error('Invalid bulk delete body', error);
+    throw errors.validation('Request body must be JSON');
+  }
+}
+
+function logBulkDelete(username: string, result: BulkDeleteProductsResult): void {
+  console.log(
+    `[ADMIN] Bulk product delete by ${username}: deleted=${result.deleted}, deactivated=${result.deactivated}, notFound=${result.notFound}`
+  );
+  Sentry.metrics.count('admin.product_bulk_delete', result.deleted + result.deactivated);
+}
 
 export { adminRoutes };
 

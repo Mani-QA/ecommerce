@@ -585,11 +585,12 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 ### 8.3 Products Tab
 
 #### FR-ADM-007: Product Inventory Table
-- **Description:** Products tab shows all products
+- **Description:** Products tab shows products, including inactive ones
 - **Acceptance Criteria:**
-  - Table columns: Product (image + name), Price, Stock, Status, Actions
+  - Table columns: Select, Product (image + name), Added date, Price, Stock, Status, Actions
   - Includes inactive products
   - Stock shown as editable input
+  - Results are paged 100 at a time, newest added first by default
 
 #### FR-ADM-008: Update Product Stock
 - **Description:** Admin can update product stock inline
@@ -633,6 +634,27 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Expected Result:**
   - Status badge updates (Active/Inactive)
   - Inactive products not shown in catalog
+
+#### FR-ADM-015: Filter and Sort Products
+- **Description:** Admin can find products added by bots or tests
+- **Acceptance Criteria:**
+  - Filter by product name
+  - Filter by created date with an inclusive "Added from" and "Added to" range (UTC)
+  - Sort by date added (newest or oldest) or by name
+  - Clear filters returns to the full inventory, newest first
+  - A reversed date range shows a validation error and does not change the list
+
+#### FR-ADM-016: Bulk Delete Products
+- **Description:** Admin can remove many products at once
+- **Actions:**
+  - Select individual rows, or select every row on the current page, then choose "Delete selected"
+  - With a name or date filter applied, choose "Delete matching" to remove every product that matches
+- **Expected Result:**
+  - Confirmation dialog states how many products will be removed
+  - Products that are not part of an order are permanently deleted, including stored images
+  - Products that belong to an order are deactivated instead, so order history stays intact
+  - A status message reports how many were deleted and how many were deactivated
+  - Filter deletes are limited to 1,000 products per request. When more remain, the message tells the admin to run delete again
 
 ### 8.4 Orders Tab
 
@@ -881,7 +903,8 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 | Method | Endpoint | Auth Required | Description |
 |--------|----------|---------------|-------------|
 | GET | `/api/admin/stats` | Admin | Dashboard statistics |
-| GET | `/api/admin/products` | Admin | All products (inc. inactive) |
+| GET | `/api/admin/products` | Admin | Products (inc. inactive), with name/date filters, sort, and paging |
+| POST | `/api/admin/products/bulk-delete` | Admin | Delete selected products or products matching a name/date filter |
 | PATCH | `/api/admin/products/:id/stock` | Admin | Update product stock |
 | GET | `/api/admin/orders` | Admin | All orders |
 | GET | `/api/admin/orders/:id` | Admin | Order details |

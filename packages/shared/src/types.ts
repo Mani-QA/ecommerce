@@ -36,6 +36,23 @@ export interface Product {
   updatedAt: string;
 }
 
+/** Products returned per admin inventory page. */
+export const ADMIN_PRODUCT_PAGE_SIZE = 100;
+
+/** Maximum product ids accepted by one bulk-delete request. */
+export const BULK_DELETE_ID_LIMIT = 500;
+
+/** Maximum products removed by one filter-based bulk delete. */
+export const BULK_DELETE_MATCH_LIMIT = 1000;
+
+export interface BulkDeleteProductsResult {
+  requested: number;
+  deleted: number;
+  deactivated: number;
+  notFound: number;
+  hasMore: boolean;
+}
+
 /**
  * Cart Types
  */

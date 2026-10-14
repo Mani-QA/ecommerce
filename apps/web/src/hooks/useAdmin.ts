@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { AdminProductQuery, BulkDeleteProductsInput } from '@qademo/shared';
 import { api } from '@/lib/api';
 
-export function useAdminProducts() {
+export function useAdminProducts(query: Partial<AdminProductQuery>, enabled = true) {
   return useQuery({
-    queryKey: ['admin', 'products'],
-    queryFn: () => api.getAdminProducts(),
+    queryKey: ['admin', 'products', query],
+    queryFn: () => api.getAdminProducts(query),
+    enabled,
   });
 }
 
@@ -98,6 +100,19 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: (productId: number) => api.deleteProduct(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });
+    },
+  });
+}
+
+export function useBulkDeleteProducts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: BulkDeleteProductsInput) => api.bulkDeleteProducts(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
