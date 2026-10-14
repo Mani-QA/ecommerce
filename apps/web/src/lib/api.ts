@@ -98,19 +98,21 @@ class ApiClient {
   }
 
   // Auth methods
-  async login(username: string, password: string): Promise<AuthResponse> {
+  async login(username: string, password: string, signal?: AbortSignal): Promise<AuthResponse> {
     const response = await this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+      signal,
     });
     this.accessToken = response.accessToken;
     return response;
   }
 
-  async signup(data: SignupInput): Promise<AuthResponse> {
+  async signup(data: SignupInput, signal?: AbortSignal): Promise<AuthResponse> {
     const response = await this.request<AuthResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(data),
+      signal,
     });
     this.accessToken = response.accessToken;
     return response;
@@ -129,9 +131,10 @@ class ApiClient {
     return this.request<{ clientId: string }>('/auth/google/config');
   }
 
-  async logout(): Promise<void> {
+  async logout(signal?: AbortSignal): Promise<void> {
     await this.request<{ message: string }>('/auth/logout', {
       method: 'POST',
+      signal,
     });
     this.accessToken = null;
   }
@@ -149,58 +152,78 @@ class ApiClient {
   }
 
   // Product methods
-  async getProducts(): Promise<Product[]> {
-    return this.request<Product[]>('/products');
+  async getProducts(signal?: AbortSignal): Promise<Product[]> {
+    return this.request<Product[]>('/products', { signal });
   }
 
-  async getProduct(slug: string): Promise<Product> {
-    return this.request<Product>(`/products/${slug}`);
+  async getProduct(slug: string, signal?: AbortSignal): Promise<Product> {
+    return this.request<Product>(`/products/${encodeURIComponent(slug)}`, { signal });
+  }
+
+  async getProductById(id: number, signal?: AbortSignal): Promise<Product> {
+    return this.request<Product>(`/products/id/${id}`, { signal });
   }
 
   // Cart methods
-  async getCart(): Promise<Cart> {
-    return this.request<Cart>('/cart');
+  async getCart(signal?: AbortSignal): Promise<Cart> {
+    return this.request<Cart>('/cart', { signal });
   }
 
-  async addToCart(productId: number, quantity = 1): Promise<{ productId: number; quantity: number; totalItems: number }> {
+  async addToCart(
+    productId: number,
+    quantity = 1,
+    signal?: AbortSignal
+  ): Promise<{ productId: number; quantity: number; totalItems: number }> {
     return this.request('/cart/items', {
       method: 'POST',
       body: JSON.stringify({ productId, quantity }),
+      signal,
     });
   }
 
-  async updateCartItem(productId: number, quantity: number): Promise<{ productId: number; quantity: number; totalItems: number }> {
+  async updateCartItem(
+    productId: number,
+    quantity: number,
+    signal?: AbortSignal
+  ): Promise<{ productId: number; quantity: number; totalItems: number }> {
     return this.request(`/cart/items/${productId}`, {
       method: 'PATCH',
       body: JSON.stringify({ quantity }),
+      signal,
     });
   }
 
-  async removeFromCart(productId: number): Promise<{ productId: number; removed: boolean; totalItems: number }> {
+  async removeFromCart(
+    productId: number,
+    signal?: AbortSignal
+  ): Promise<{ productId: number; removed: boolean; totalItems: number }> {
     return this.request(`/cart/items/${productId}`, {
       method: 'DELETE',
+      signal,
     });
   }
 
-  async clearCart(): Promise<{ cleared: boolean; totalItems: number }> {
+  async clearCart(signal?: AbortSignal): Promise<{ cleared: boolean; totalItems: number }> {
     return this.request('/cart', {
       method: 'DELETE',
+      signal,
     });
   }
 
   // Order methods
-  async getOrders(): Promise<Order[]> {
-    return this.request<Order[]>('/orders');
+  async getOrders(signal?: AbortSignal): Promise<Order[]> {
+    return this.request<Order[]>('/orders', { signal });
   }
 
-  async getOrder(id: number): Promise<Order> {
-    return this.request<Order>(`/orders/${id}`);
+  async getOrder(id: number, signal?: AbortSignal): Promise<Order> {
+    return this.request<Order>(`/orders/${id}`, { signal });
   }
 
-  async createOrder(data: CreateOrderInput): Promise<Order> {
+  async createOrder(data: CreateOrderInput, signal?: AbortSignal): Promise<Order> {
     return this.request<Order>('/orders', {
       method: 'POST',
       body: JSON.stringify(data),
+      signal,
     });
   }
 
@@ -266,10 +289,15 @@ class ApiClient {
     return totals;
   }
 
-  async updateProductStock(productId: number, stock: number): Promise<{ id: number; stock: number }> {
+  async updateProductStock(
+    productId: number,
+    stock: number,
+    signal?: AbortSignal
+  ): Promise<{ id: number; stock: number }> {
     return this.request(`/admin/products/${productId}/stock`, {
       method: 'PATCH',
       body: JSON.stringify({ stock }),
+      signal,
     });
   }
 
@@ -309,26 +337,28 @@ class ApiClient {
     });
   }
 
-  async getAdminOrders(): Promise<(Order & { username: string })[]> {
-    return this.request('/admin/orders');
+  async getAdminOrders(signal?: AbortSignal): Promise<(Order & { username: string })[]> {
+    return this.request('/admin/orders', { signal });
   }
 
   async updateOrderStatus(
     orderId: number,
-    status: string
+    status: string,
+    signal?: AbortSignal
   ): Promise<{ id: number; status: string }> {
     return this.request(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+      signal,
     });
   }
 
-  async getAdminStats(): Promise<{
+  async getAdminStats(signal?: AbortSignal): Promise<{
     counts: { products: number; orders: number; users: number; pendingOrders: number };
     recentOrders: Array<{ id: number; totalAmount: number; status: string; createdAt: string; username: string }>;
     lowStockProducts: Array<{ id: number; name: string; stock: number }>;
   }> {
-    return this.request('/admin/stats');
+    return this.request('/admin/stats', { signal });
   }
 
   async uploadImage(file: File, folder = 'products'): Promise<{

@@ -1,8 +1,8 @@
 # Functional Requirements Document (FRD)
 ## QADemo - E-Commerce Testing Platform
 
-**Version:** 1.0  
-**Last Updated:** January 7, 2026  
+**Version:** 1.1  
+**Last Updated:** October 14, 2026  
 **Application URL:** https://qademo.com
 
 ---
@@ -21,6 +21,7 @@
 10. [Error Handling](#10-error-handling)
 11. [API Reference](#11-api-reference)
 12. [Validation Rules](#12-validation-rules)
+13. [Browser Agent Tools](#13-browser-agent-tools)
 
 ---
 
@@ -35,6 +36,7 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Predictable Test Data** - Pre-seeded users and products
 - **Stable Selectors** - Consistent HTML structure
 - **Real API Backend** - Practice API testing
+- **WebMCP tools** - Browser agents can shop through `document.modelContext`
 
 ---
 
@@ -960,6 +962,32 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 |-------|-------|
 | productId | Required, positive integer |
 | quantity | Required, integer 1-99, cannot exceed stock |
+
+---
+
+## 13. Browser Agent Tools
+
+Every page registers WebMCP tools for a browser agent. Customer tools stay available on all routes. Admin tools are registered only while an admin is signed in.
+
+### FR-AGENT-001: Customer tools
+
+The home page lists these tools: `search_products`, `get_product`, `get_cart`, `add_to_cart`, `set_cart_quantity`, `clear_cart`, `get_session`, `sign_in`, `sign_out`, `create_account`, `list_orders`, `get_order`, `place_order`, and `open_page`.
+
+### FR-AGENT-002: Shared cart and session
+
+Tool calls use the same API client as the pages. Adding an item updates the cart badge. Signing in updates the account shown in the header. `place_order` opens the new order page.
+
+### FR-AGENT-003: Checkout confirmation
+
+`place_order` is marked as a consequential action. It requires a signed-in shopper, a cart that contains items, a shipping address, and a card that passes the Luhn check. The published test card is `4242 4242 4242 4242`. Results include the last four digits only.
+
+### FR-AGENT-004: Admin tools
+
+`get_store_stats`, `update_stock`, and `update_order_status` are absent until an admin signs in. A customer or guest who calls one receives a forbidden or sign-in error.
+
+### FR-AGENT-005: Page guard
+
+`open_page` can open home, catalog, a product by slug, cart, checkout, login, signup, orders, one order, or admin. Checkout, orders, and a single order require a signed-in shopper. Admin requires an admin account.
 
 ---
 

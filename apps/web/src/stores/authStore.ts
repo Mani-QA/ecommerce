@@ -17,10 +17,10 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<void>;
-  signup: (data: SignupInput) => Promise<void>;
+  login: (username: string, password: string, signal?: AbortSignal) => Promise<void>;
+  signup: (data: SignupInput, signal?: AbortSignal) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (signal?: AbortSignal) => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
 }
@@ -33,10 +33,10 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       error: null,
 
-      login: async (username: string, password: string) => {
+      login: async (username: string, password: string, signal?: AbortSignal) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.login(username, password);
+          const response = await api.login(username, password, signal);
           set({
             user: response.user,
             isAuthenticated: true,
@@ -50,10 +50,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signup: async (data: SignupInput) => {
+      signup: async (data: SignupInput, signal?: AbortSignal) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.signup(data);
+          const response = await api.signup(data, signal);
           set({
             user: response.user,
             isAuthenticated: true,
@@ -84,9 +84,9 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: async () => {
+      logout: async (signal?: AbortSignal) => {
         try {
-          await api.logout();
+          await api.logout(signal);
         } catch {
           // Ignore logout errors
         } finally {
