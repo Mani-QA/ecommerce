@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Package, ShoppingBag, Users, Clock, AlertTriangle, Plus } from 'lucide-react';
+import { Package, ShoppingBag, Users, Clock, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
-  useAdminProducts,
   useAdminOrders,
   useAdminStats,
   useUpdateProductStock,
@@ -12,12 +11,11 @@ import {
 } from '@/hooks/useAdmin';
 import { formatPrice, formatDateTime } from '@qademo/shared';
 import type { Product } from '@qademo/shared';
-import { getImageUrl } from '@/lib/api';
-import Button from '@/components/ui/Button';
 import Card, { CardContent, CardHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import ProductModal, { type ProductFormData } from '@/components/admin/ProductModal';
+import ProductInventory from '@/components/admin/ProductInventory';
 
 type Tab = 'overview' | 'products' | 'orders';
 
@@ -27,7 +25,6 @@ export default function AdminPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const { data: stats, isLoading: statsLoading } = useAdminStats();
-  const { data: products, isLoading: productsLoading } = useAdminProducts();
   const { data: orders, isLoading: ordersLoading } = useAdminOrders();
   const updateStock = useUpdateProductStock();
   const updateStatus = useUpdateOrderStatus();
@@ -96,12 +93,16 @@ export default function AdminPage() {
         </motion.div>
 
         {/* Tabs */}
-        <div className="flex space-x-1 bg-slate-100 rounded-xl p-1 mb-8">
+        <div className="flex space-x-1 bg-slate-100 rounded-xl p-1 mb-8" role="tablist" aria-label="Admin sections">
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              data-testid={`admin-tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                 activeTab === tab.id
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -214,94 +215,14 @@ export default function AdminPage() {
 
         {/* Products Tab */}
         {activeTab === 'products' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            {productsLoading ? (
-              <LoadingSpinner />
-            ) : (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-900">Inventory Management</h2>
-                    <Button onClick={handleAddProduct} size="sm">
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Product
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Product
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Price
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Stock
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {products?.map((product) => (
-                          <tr key={product.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={getImageUrl(product.imageUrl)}
-                                  alt={product.name}
-                                  className="w-10 h-10 rounded-lg object-cover"
-                                />
-                                <span className="font-medium text-slate-900">{product.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-slate-900">
-                              {formatPrice(product.price)}
-                            </td>
-                            <td className="px-6 py-4">
-                              <input
-                                type="number"
-                                defaultValue={product.stock}
-                                min="0"
-                                className="w-20 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                onBlur={(e) => {
-                                  const newStock = parseInt(e.target.value, 10);
-                                  if (!isNaN(newStock) && newStock !== product.stock) {
-                                    handleStockUpdate(product.id, newStock);
-                                  }
-                                }}
-                              />
-                            </td>
-                            <td className="px-6 py-4">
-                              <Badge variant={product.isActive ? 'success' : 'error'}>
-                                {product.isActive ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleEditProduct(product)}
-                              >
-                                Edit
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} role="tabpanel">
+            <ProductInventory
+              onAddProduct={handleAddProduct}
+              onEditProduct={handleEditProduct}
+              onStockUpdate={(productId, stock) => {
+                void handleStockUpdate(productId, stock);
+              }}
+            />
           </motion.div>
         )}
 

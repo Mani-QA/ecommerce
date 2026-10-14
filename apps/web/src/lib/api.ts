@@ -1,12 +1,16 @@
-import type {
-  ApiResponse,
-  Product,
-  User,
-  Order,
-  Cart,
-  AuthResponse,
-  CreateOrderInput,
-  SignupInput,
+import {
+  BULK_DELETE_ID_LIMIT,
+  type AdminProductQuery,
+  type ApiResponse,
+  type AuthResponse,
+  type BulkDeleteProductsInput,
+  type BulkDeleteProductsResult,
+  type Cart,
+  type CreateOrderInput,
+  type Order,
+  type Product,
+  type SignupInput,
+  type User,
 } from '@qademo/shared';
 
 // API Configuration - externalized for test automation
@@ -58,6 +62,14 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    const data = await this.requestRaw<T>(endpoint, options);
+    return data.data as T;
+  }
+
+  private async requestRaw<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'X-Session-ID': getSessionId(),
@@ -74,7 +86,7 @@ class ApiClient {
       credentials: 'include',
     });
 
-    const data: ApiResponse<T> = await response.json();
+    const data = (await response.json()) as ApiResponse<T>;
 
     if (!data.success || data.error) {
       const error = new Error(data.error?.message || 'Unknown error');
@@ -82,7 +94,7 @@ class ApiClient {
       throw error;
     }
 
-    return data.data as T;
+    return data;
   }
 
   // Auth methods
@@ -193,8 +205,65 @@ class ApiClient {
   }
 
   // Admin methods
-  async getAdminProducts(): Promise<Product[]> {
-    return this.request<Product[]>('/admin/products');
+  async getAdminProducts(query: Partial<AdminProductQuery> = {}): Promise<{
+    products: Product[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const params = new URLSearchParams();
+    if (query.name) params.set('name', query.name);
+    if (query.from) params.set('from', query.from);
+    if (query.to) params.set('to', query.to);
+    if (query.sort) params.set('sort', query.sort);
+    if (query.direction) params.set('direction', query.direction);
+    if (query.page) params.set('page', String(query.page));
+
+    const search = params.toString();
+    const response = await this.requestRaw<Product[]>(
+      `/admin/products${search ? `?${search}` : ''}`
+    );
+
+    return {
+      products: response.data ?? [],
+      total: response.meta?.total ?? response.data?.length ?? 0,
+      page: response.meta?.page ?? query.page ?? 1,
+      limit: response.meta?.limit ?? response.data?.length ?? 0,
+    };
+  }
+
+  async bulkDeleteProducts(input: BulkDeleteProductsInput): Promise<BulkDeleteProductsResult> {
+    if (input.ids?.length) {
+      return this.bulkDeleteByIds(input.ids);
+    }
+
+    return this.request<BulkDeleteProductsResult>('/admin/products/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ match: input.match }),
+    });
+  }
+
+  private async bulkDeleteByIds(ids: number[]): Promise<BulkDeleteProductsResult> {
+    const totals: BulkDeleteProductsResult = {
+      requested: 0,
+      deleted: 0,
+      deactivated: 0,
+      notFound: 0,
+      hasMore: false,
+    };
+
+    for (let index = 0; index < ids.length; index += BULK_DELETE_ID_LIMIT) {
+      const result = await this.request<BulkDeleteProductsResult>('/admin/products/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: ids.slice(index, index + BULK_DELETE_ID_LIMIT) }),
+      });
+      totals.requested += result.requested;
+      totals.deleted += result.deleted;
+      totals.deactivated += result.deactivated;
+      totals.notFound += result.notFound;
+    }
+
+    return totals;
   }
 
   async updateProductStock(productId: number, stock: number): Promise<{ id: number; stock: number }> {
