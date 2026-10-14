@@ -50,6 +50,40 @@ QADemo is purpose-built for QA engineers and developers learning test automation
 | **Responsive Design** | Mobile menu, breakpoint testing, touch interactions |
 | **Error Handling** | Network errors, validation errors, edge cases |
 | **Observability** | Sentry integration for error monitoring, logging, and performance tracking |
+| **Browser agents** | WebMCP tools for catalog search, cart, sign-in, checkout, and admin updates |
+
+---
+
+## Browser agents (WebMCP)
+
+QADemo registers [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api) tools on every page through `document.modelContext`. A browser agent can shop the store without scraping the DOM. Chrome uses the native API. Other current browsers receive the same API from `@mcp-b/webmcp-polyfill`, which leaves a native `document.modelContext` in place.
+
+The home page lists the customer tools. Admin tools (`get_store_stats`, `update_stock`, `update_order_status`) appear only after an admin signs in.
+
+| Tool | What it does |
+|------|----------------|
+| `search_products` | Find products by keyword, highest price, and stock |
+| `get_product` | Load one product by id, slug, or name |
+| `get_cart` | Read cart lines and the total |
+| `add_to_cart` | Add units of a product |
+| `set_cart_quantity` | Set a line quantity, or remove it with `0` |
+| `clear_cart` | Empty the cart |
+| `open_page` | Open home, catalog, product, cart, checkout, login, signup, orders, order, or admin |
+| `get_session` | Read who is signed in |
+| `sign_in` / `sign_out` | Start or end a session |
+| `create_account` | Create a customer account and sign in |
+| `list_orders` / `get_order` | Read the signed-in shopper's orders |
+| `place_order` | Check out the current cart. The browser should confirm this action before it runs |
+
+`place_order` accepts the published test card `4242 4242 4242 4242`, any future `MM/YY` expiry, and any 3-digit CVV. Tool results include the last four digits only. They do not include the access token, full card number, CVV, or client IP address.
+
+In a supporting browser console:
+
+```javascript
+const tools = await document.modelContext.getTools();
+const search = tools.find((tool) => tool.name === 'search_products');
+await document.modelContext.executeTool(search, { query: 'headphones', inStockOnly: true });
+```
 
 ---
 

@@ -2,8 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
+import { installWebMCP } from '@mcp-b/webmcp-polyfill';
 import App from './App';
 import './styles/globals.css';
+
+installWebMCP();
 
 const queryClient = new QueryClient({
   defaultOptions: {

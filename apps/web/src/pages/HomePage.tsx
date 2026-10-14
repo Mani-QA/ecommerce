@@ -3,6 +3,7 @@ import { ArrowRight, Zap, Shield, Truck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useProducts } from '@/hooks/useProducts';
 import { useAuthStore } from '@/stores/authStore';
+import AgentToolsSection from '@/components/home/AgentToolsSection';
 import ProductCard from '@/components/products/ProductCard';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -101,6 +102,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <AgentToolsSection />
 
       {/* Featured Products */}
       <section className="py-20">

@@ -20,6 +20,7 @@
     "types:worker": "wrangler types"
   },
   "dependencies": {
+    "@mcp-b/webmcp-polyfill": "^6.0.2",
     "@qademo/shared": "workspace:*",
     "@sentry/cloudflare": "^10.34.0",
     "@tanstack/react-query": "^5.40.0",
@@ -31,6 +32,7 @@
     "react-dom": "^18.3.0",
     "react-hook-form": "^7.51.0",
     "react-router-dom": "^6.23.0",
+    "usewebmcp": "^6.0.2",
     "zod": "^3.22.0",
     "zustand": "^4.5.0"
   },
@@ -38,12 +40,16 @@
     "@cloudflare/workers-types": "^4.20241218.0",
     "@eslint/js": "^9.0.0",
     "@hono/zod-validator": "^0.2.0",
+    "@mcp-b/webmcp-types": "^6.0.2",
     "@playwright/test": "^1.44.0",
     "@sentry/cli": "^3.1.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
+    "jsdom": "^30.1.2",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.0",
