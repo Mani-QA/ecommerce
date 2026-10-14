@@ -68,6 +68,9 @@ export default function Footer() {
 
         <div className="mt-8 pt-8 border-t border-slate-800 text-center text-sm space-y-1">
           <p>&copy; {new Date().getFullYear()} QA Demo. Built for testing purposes.</p>
+          <p data-testid="webmcp-footer-note">
+            Browser agents can shop this store with WebMCP tools such as search_products, add_to_cart, and place_order.
+          </p>
           <p>
             Developed by{' '}
             <a

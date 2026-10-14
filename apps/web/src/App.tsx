@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
+import StoreAgentTools from './webmcp/StoreAgentTools';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -20,7 +21,9 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function App() {
   return (
-    <Routes>
+    <>
+      <StoreAgentTools />
+      <Routes>
       <Route path="/" element={<Layout />}>
         <Route
           index
@@ -120,6 +123,7 @@ function App() {
         />
       </Route>
     </Routes>
+    </>
   );
 }
 
