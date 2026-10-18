@@ -1,8 +1,8 @@
 # Functional Requirements Document (FRD)
 ## QADemo - E-Commerce Testing Platform
 
-**Version:** 1.1  
-**Last Updated:** October 14, 2026  
+**Version:** 1.2  
+**Last Updated:** October 18, 2026  
 **Application URL:** https://qademo.com
 
 ---
@@ -65,23 +65,28 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 ### 3.1 Login Page (`/login`)
 
 #### FR-AUTH-001: Login Form Display
-- **Description:** Login page displays username and password input fields
+- **Description:** Login page offers Google sign-in and a username-or-email password form
 - **Acceptance Criteria:**
-  - Username field with label "Username"
+  - Heading "Welcome Back"
+  - "Sign in with Google" when Google is not configured, or the Google Identity Services button when `GOOGLE_CLIENT_ID` is set
+  - Divider text "or sign in with password"
+  - Field label "Username or Email"
   - Password field with label "Password" (masked input)
-  - "Sign In" button
-  - Test credentials helper section displayed below form
-  - "Back to Home" link at bottom
+  - "Sign In" button, which shows "Signing In..." while the request is in progress
+  - "Create Account" link to `/signup`
+  - "Back to Home" link at the bottom
+  - The page does not show a test-credential quick-fill control
 
 #### FR-AUTH-002: Standard User Login
-- **Description:** Standard user can login successfully
-- **Precondition:** User is on login page
-- **Input:** Username: `standard_user`, Password: `standard123`
+- **Description:** Standard user can login with a username or the account email
+- **Precondition:** User is on the login page
+- **Input:** Username `standard_user` or that account's email, and password `standard123`
 - **Expected Result:**
   - Login succeeds
-  - User redirected to `/catalog` (or previous protected page)
+  - User redirected to `/catalog`, or to the protected page that sent them to login
   - Username displayed in navbar
-  - Access token stored in browser
+  - Access token stored in the browser
+  - HttpOnly `refresh_token` cookie set for 7 days
 
 #### FR-AUTH-003: Locked User Login Rejection
 - **Description:** Locked user cannot login
@@ -95,7 +100,7 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 #### FR-AUTH-004: Invalid Credentials Rejection
 - **Description:** Invalid credentials are rejected
 - **Precondition:** User is on login page
-- **Input:** Any invalid username/password combination
+- **Input:** Any invalid username, email, or password
 - **Expected Result:**
   - Login fails
   - Error message displayed: "Invalid username or password"
@@ -107,17 +112,20 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Input:** Username: `admin_user`, Password: `$Admin<ddmmyyyy>` (calculated based on current date DDMMYYYY)
 - **Expected Result:**
   - Login succeeds
-  - User redirected to catalog
+  - User redirected to catalog, or to the protected page that sent them to login
   - "Admin" button visible in navbar
   - User can access `/admin` page
 
-#### FR-AUTH-006: Test Credential Quick Fill
-- **Description:** Clicking test credential button fills form
-- **Precondition:** User is on login page
-- **Action:** Click on any test credential row (e.g., "Standard User")
+#### FR-AUTH-006: Google Sign-In
+- **Description:** A visitor can sign in or register with a Google ID token
+- **Precondition:** `GOOGLE_CLIENT_ID` is configured. Without it, the button explains that the client id must be set and does not start Google sign-in.
+- **Action:** Choose "Sign in with Google" and complete the Google prompt
 - **Expected Result:**
-  - Username field populated with corresponding username
-  - Password field populated with corresponding password
+  - An existing account with the same email is linked to the Google identity and signed in
+  - A new visitor receives a `standard` account and is signed in
+  - A locked account is rejected with "Account is locked"
+  - An invalid Google token shows an authentication error and leaves the visitor on the login page
+  - After success, the visitor goes to `/catalog` or to the protected page that sent them to login
 
 #### FR-AUTH-007: Logout Functionality
 - **Description:** Logged-in user can logout
@@ -126,7 +134,7 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Expected Result:**
   - User session cleared
   - User redirected to home page
-  - "Sign In" button appears in navbar
+  - "Sign In" and "Sign Up" buttons appear in the navbar
   - Cart state persisted (if applicable)
 
 #### FR-AUTH-008: Session Persistence
@@ -145,6 +153,53 @@ QADemo is a production-grade e-commerce application designed specifically for pr
   - User redirected to `/login`
   - After login, user redirected to originally requested page
 
+### 3.2 Signup Page (`/signup`)
+
+#### FR-AUTH-010: Signup Form Display
+- **Description:** Signup page collects an email, phone, optional username, and password
+- **Acceptance Criteria:**
+  - Heading "Create an Account"
+  - "Sign up with Google" when Google is not configured, or the Google Identity Services signup button when `GOOGLE_CLIENT_ID` is set
+  - Divider text "or register with email"
+  - Email Address (required)
+  - Phone Number (required)
+  - Username (optional)
+  - Password and Confirm Password (masked, with show/hide controls)
+  - While a password is entered, a checklist shows whether it has 8 characters, an uppercase letter, and a number
+  - "Create Account" button, which shows "Creating Account..." while the request is in progress
+  - "Sign In" link to `/login`
+  - "Back to Home" link
+
+#### FR-AUTH-011: Successful Signup
+- **Description:** A new visitor can create a standard account and is signed in immediately
+- **Precondition:** The email and username are not already registered
+- **Input:** A valid email, a phone number of at least 7 digits, password `NewUser1!`, and the same value in Confirm Password. Username may be omitted.
+- **Expected Result:**
+  - Account type is `standard`
+  - Email is stored in lowercase
+  - When username is omitted, one is derived from the email and made unique
+  - Signup records the client IP address and Cloudflare location when those headers are present
+  - The visitor is signed in and redirected to `/catalog`
+  - Username is shown in the navbar
+  - Access token and refresh cookie are stored the same way as login
+
+#### FR-AUTH-012: Signup Validation and Conflicts
+- **Description:** Invalid or duplicate signup details stay on the signup page
+- **Expected Result:**
+  - Missing or invalid email, phone, password, or confirm password shows the field error and does not submit
+  - Confirm Password must match Password. A mismatch shows "Passwords do not match"
+  - An email that already exists shows "An account with this email address already exists. Please sign in instead."
+  - A username that is already taken shows "This username is already taken. Please choose another username."
+
+#### FR-AUTH-013: Google Signup
+- **Description:** Google signup uses the same account rules as Google sign-in
+- **Action:** On `/signup`, choose "Sign up with Google" and complete the Google prompt
+- **Expected Result:**
+  - A new Google visitor is created as a `standard` user and sent to `/catalog`
+  - An existing email is linked and signed in
+  - A locked account is rejected
+  - The signed-in visitor is not left on the signup page
+
 ---
 
 ## 4. Product Catalog Module
@@ -156,8 +211,9 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Acceptance Criteria:**
   - QADemo logo and branding
   - Welcome message
-  - "Shop Now" or "Browse Products" button (for guests)
-  - Button navigates to `/catalog`
+  - "Browse Products" button, which navigates to `/catalog`
+  - "WebMCP" button beside Browse Products. It opens a modal and does not navigate away. See FR-AGENT-006.
+  - "Sign In" button for guests, which navigates to `/login`
 
 #### FR-PROD-002: Featured Products Display
 - **Description:** Home page displays featured products
@@ -645,16 +701,27 @@ QADemo is a production-grade e-commerce application designed specifically for pr
   - A reversed date range shows a validation error and does not change the list
 
 #### FR-ADM-016: Bulk Delete Products
-- **Description:** Admin can remove many products at once
-- **Actions:**
-  - Select individual rows, or select every row on the current page, then choose "Delete selected"
-  - With a name or date filter applied, choose "Delete matching" to remove every product that matches
-- **Expected Result:**
-  - Confirmation dialog states how many products will be removed
+- **Description:** Admin can remove many products at once from the Products tab
+- **Selection:**
+  - Each row has a checkbox. The table header selects or clears every row on the current page.
+  - A selection bar shows "{count} selected", "Clear selection", and "Delete selected"
+  - One request accepts at most 500 selected ids
+- **Filter delete:**
+  - "Delete {total} matching" is available only while a name or created-date filter is applied
+  - A filter delete removes at most 1,000 products per request
+  - When more than 1,000 match, the confirmation says it removes the first 1,000 and that delete must be run again
+- **Confirmation:**
+  - The dialog title is "Delete {count} selected product(s)?" or "Delete {count} matching products?"
+  - The dialog says products that belong to an existing order will be deactivated so order history stays intact, and every other product will be permanently deleted, including its stored image
+  - Confirm is labeled "Delete {count}". Cancel is focused when the dialog opens.
+  - Escape or Cancel closes the dialog without deleting. Escape is ignored while the delete is in progress.
+- **Result:**
   - Products that are not part of an order are permanently deleted, including stored images
-  - Products that belong to an order are deactivated instead, so order history stays intact
-  - A status message reports how many were deleted and how many were deactivated
-  - Filter deletes are limited to 1,000 products per request. When more remain, the message tells the admin to run delete again
+  - Products that belong to an order are deactivated and their images are kept
+  - The status message reports the outcome, for example "Permanently deleted 2 products. 1 product was deactivated because it belongs to an order."
+  - Selected ids that were already gone are reported as already removed
+  - When a filter still has products after the 1,000 limit, the message says "More products still match this filter. Run delete again to continue."
+  - The public catalog no longer lists deleted or deactivated products
 
 ### 8.4 Orders Tab
 
@@ -700,8 +767,9 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Description:** Sign In button shown for guests
 - **Precondition:** User not logged in
 - **Expected Result:**
-  - "Sign In" button visible
-  - Clicking navigates to `/login`
+  - "Sign In" button visible, and a "Sign Up" button beside it
+  - Sign In navigates to `/login`
+  - Sign Up navigates to `/signup`
 
 #### FR-NAV-005: User Menu (Authenticated)
 - **Description:** Authenticated user sees username and logout
@@ -717,8 +785,8 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Action:** Click hamburger menu icon
 - **Expected Result:**
   - Mobile menu slides in
-  - Contains all navigation links
-  - "My Orders" link (if authenticated)
+  - Contains navigation links, including Sign In and Create Account for guests
+  - "My Orders" link when the visitor is authenticated
 
 ### 9.2 Footer
 
@@ -726,8 +794,9 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 - **Description:** Footer contains relevant links
 - **Acceptance Criteria:**
   - Products link
-  - Sign In link (only if not authenticated)
+  - Sign In and Create Account links when the visitor is not authenticated
   - Cart link
+  - A note that browser agents can shop with WebMCP tools such as `search_products`, `add_to_cart`, and `place_order`
 
 ---
 
@@ -862,9 +931,12 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 
 | Method | Endpoint | Auth Required | Description |
 |--------|----------|---------------|-------------|
-| POST | `/api/auth/login` | No | Login with username/password |
+| POST | `/api/auth/signup` | No | Create a standard account and start a session |
+| POST | `/api/auth/login` | No | Login with username or email and password |
+| GET | `/api/auth/google/config` | No | Public Google client id used by the sign-in button |
+| POST | `/api/auth/google` | No | Sign in or register with a Google ID token |
 | POST | `/api/auth/logout` | No | Logout (clear session) |
-| POST | `/api/auth/refresh` | No | Refresh access token |
+| POST | `/api/auth/refresh` | Cookie | Refresh access token from the `refresh_token` cookie |
 | GET | `/api/auth/me` | Yes | Get current user profile |
 
 ### 11.2 Product Endpoints
@@ -904,7 +976,7 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 |--------|----------|---------------|-------------|
 | GET | `/api/admin/stats` | Admin | Dashboard statistics |
 | GET | `/api/admin/products` | Admin | Products (inc. inactive), with name/date filters, sort, and paging |
-| POST | `/api/admin/products/bulk-delete` | Admin | Delete selected products or products matching a name/date filter |
+| POST | `/api/admin/products/bulk-delete` | Admin | Delete up to 500 selected products, or up to 1,000 products matching a name/date filter. Ordered products are deactivated. |
 | PATCH | `/api/admin/products/:id/stock` | Admin | Update product stock |
 | GET | `/api/admin/orders` | Admin | All orders |
 | GET | `/api/admin/orders/:id` | Admin | Order details |
@@ -926,8 +998,18 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 
 | Field | Rules |
 |-------|-------|
-| username | Required, non-empty string |
+| username | Required. Matches the account username or email. |
 | password | Required, non-empty string |
+
+### 12.6 Signup Form
+
+| Field | Rules |
+|-------|-------|
+| email | Required, valid email, max 255 characters, stored in lowercase, must be unique |
+| phone | Required, 7-20 characters, digits with optional separators |
+| username | Optional. 3-30 characters. Letters, numbers, underscores, and hyphens. Must be unique. Derived from the email when omitted. |
+| password | Required, at least 8 characters, one uppercase letter, and one number |
+| confirmPassword | Required on the page, and must match password. Not sent to the API. |
 
 ### 12.2 Checkout - Shipping
 
@@ -965,17 +1047,34 @@ QADemo is a production-grade e-commerce application designed specifically for pr
 
 ---
 
-## 13. Browser Agent Tools
+## 13. Browser Agent Tools (WebMCP)
 
-Every page registers WebMCP tools for a browser agent. Customer tools stay available on all routes. Admin tools are registered only while an admin is signed in.
+Every page registers [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api) tools on `document.modelContext` before the first render. Chrome uses the native API. Other browsers receive the same API from `@mcp-b/webmcp-polyfill`, which leaves a native `document.modelContext` in place. The polyfill runs on `http://localhost` because localhost is a secure context. Production requires HTTPS.
+
+Customer tools stay registered on every route. Admin tools are registered only while an admin is signed in and are removed when that session ends. Registration ends when the page unmounts. There is no separate unregister call.
 
 ### FR-AGENT-001: Customer tools
 
-The home page lists these tools: `search_products`, `get_product`, `get_cart`, `add_to_cart`, `set_cart_quantity`, `clear_cart`, `get_session`, `sign_in`, `sign_out`, `create_account`, `list_orders`, `get_order`, `place_order`, and `open_page`.
+| Tool | What it does |
+|------|----------------|
+| `search_products` | Find products by keyword, highest price, and stock. Returns id, slug, price, and the product page path. |
+| `get_product` | Load one product by numeric id, URL slug, or name. Returns price, stock, and the product page path. |
+| `get_cart` | Read the current cart, each line, quantity, and the order total. |
+| `add_to_cart` | Add a product by id, slug, or name, and set how many units to add. |
+| `set_cart_quantity` | Set a line quantity. A quantity of 0 removes that product. |
+| `clear_cart` | Remove every item from the cart. |
+| `get_session` | Read who is signed in, including username and role. |
+| `sign_in` | Sign in with a username or email and a password. |
+| `sign_out` | Sign out of the current account. |
+| `create_account` | Create a customer account and sign in. Requires email, phone, and a password with 8 characters, one uppercase letter, and one number. Username is optional. |
+| `list_orders` | List orders for the signed-in shopper, newest first. |
+| `get_order` | Load one order by id, including items, status, total, and shipping details. |
+| `place_order` | Check out the current cart with a shipping address and payment card. |
+| `open_page` | Open a store page so the shopper can see the result. |
 
 ### FR-AGENT-002: Shared cart and session
 
-Tool calls use the same API client as the pages. Adding an item updates the cart badge. Signing in updates the account shown in the header. `place_order` opens the new order page.
+Tool calls use the same API client as the pages. Adding an item updates the cart badge. Signing in updates the account shown in the header. `place_order` opens the new order page. `create_account` refuses to run when someone is already signed in and tells the agent to sign out first.
 
 ### FR-AGENT-003: Checkout confirmation
 
@@ -985,9 +1084,26 @@ Tool calls use the same API client as the pages. Adding an item updates the cart
 
 `get_store_stats`, `update_stock`, and `update_order_status` are absent until an admin signs in. A customer or guest who calls one receives a forbidden or sign-in error.
 
+| Tool | What it does |
+|------|----------------|
+| `get_store_stats` | Read counts for products, orders, customers, pending orders, and low-stock products. |
+| `update_stock` | Set how many units of a product are available. Marked as consequential. |
+| `update_order_status` | Set an order to pending, processing, shipped, delivered, or cancelled. Marked as consequential. |
+
 ### FR-AGENT-005: Page guard
 
-`open_page` can open home, catalog, a product by slug, cart, checkout, login, signup, orders, one order, or admin. Checkout, orders, and a single order require a signed-in shopper. Admin requires an admin account.
+`open_page` can open home, catalog, a product by slug, cart, checkout, login, signup, orders, one order, or admin. A product page requires a slug. An order page requires an `orderId`. Checkout, orders, and a single order require a signed-in shopper. Admin requires an admin account.
+
+### FR-AGENT-006: WebMCP on the home page
+
+- **Description:** The tool list is not shown as a page section. A "WebMCP" button sits beside "Browse Products" in the hero.
+- **Action:** Click WebMCP
+- **Expected Result:**
+  - A modal titled "Shop with a browser agent" opens
+  - The modal lists every customer tool name and a one-line description
+  - The modal notes that admin tools `get_store_stats`, `update_stock`, and `update_order_status` are registered after an admin signs in
+  - Close, Escape, or the backdrop dismisses the modal and returns focus to the WebMCP button
+  - The footer still mentions that browser agents can shop with WebMCP tools
 
 ---
 
