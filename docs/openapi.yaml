@@ -1,0 +1,2026 @@
+openapi: 3.1.0
+info:
+  title: QA Demo Store API
+  version: 1.1.0
+  summary: HTTP API for the QA Demo storefront, cart, checkout, and admin inventory.
+  description: |
+    JSON API served by the Cloudflare Worker at `/api`.
+
+    Successful JSON responses use one envelope:
+
+    ```json
+    { "success": true, "data": {}, "meta": { "total": 1 } }
+    ```
+
+    `meta` is present only when a response is a collection or a page.
+
+    Application errors use:
+
+    ```json
+    { "success": false, "error": { "code": "NOT_FOUND", "message": "Product not found" } }
+    ```
+
+    Request-body validation from the route validator returns HTTP 400 with a Zod parse result (`success: false` and `error.issues`) instead of that envelope. Admin list and bulk-delete validation throws into the envelope with code `VALIDATION_ERROR`.
+
+    Protected routes accept either an access token or HTTP Basic credentials. The cart is keyed by `X-Session-ID` and does not require a signed-in user. Checkout reads that same session after the caller is authenticated.
+
+    Access tokens expire in 15 minutes. The refresh token is an HttpOnly cookie named `refresh_token`, valid for 7 days, `SameSite=Lax`, and `Secure` in production.
+
+    Timestamps stored by SQLite are returned as `YYYY-MM-DD HH:MM:SS` text. Some auth rows created in memory use an ISO-8601 string.
+  contact:
+    name: QA Demo
+    url: https://qademo.com
+  license:
+    name: Proprietary
+    url: https://github.com/Mani-QA/ecommerce
+
+servers:
+  - url: https://qademo.com/api
+    description: Production
+  - url: http://localhost:5173/api
+    description: Local Vite dev server, proxied to the Worker
+  - url: http://localhost:8787/api
+    description: Local Wrangler dev server
+
+tags:
+  - name: Health
+    description: Service liveness.
+  - name: Auth
+    description: Accounts, sessions, and the current user.
+  - name: Products
+    description: Public catalog and admin product writes.
+  - name: Cart
+    description: Session cart stored for 7 days of inactivity.
+  - name: Orders
+    description: Customer checkout and order history.
+  - name: Images
+    description: Product images stored in object storage.
+  - name: Admin
+    description: Inventory, order operations, and dashboard stats. Requires an admin account.
+
+security: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Check that the API is running
+      responses:
+        "200":
+          description: The worker is serving requests.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PublicCache"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                success: true
+                data:
+                  status: healthy
+                  timestamp: "2026-10-18T16:30:00.000Z"
+                  environment: production
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      operationId: signUp
+      summary: Create an account and start a session
+      description: |
+        Creates a `standard` user. Email is stored in lowercase. When `username` is omitted, one is derived from the email and made unique. A duplicate email or username is rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+            example:
+              email: ada@example.com
+              phone: "5550101001"
+              username: ada_lovelace
+              password: NewUser1!
+      responses:
+        "201":
+          description: Account created. A refresh cookie is set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/RefreshCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: logIn
+      summary: Sign in with a username or email
+      description: |
+        `username` matches either the account username or email. Test accounts are `standard_user` / `standard123` and `locked_user` / `locked123`. The admin account is `admin_user`. Its password is `$Admin` plus the current UTC date as `DDMMYYYY`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              username: standard_user
+              password: standard123
+      responses:
+        "200":
+          description: Signed in. A refresh cookie is set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/RefreshCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          description: The username or password is wrong.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Invalid username or password
+        "403":
+          description: The account is locked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                error:
+                  code: ACCOUNT_LOCKED
+                  message: Account is locked
+
+  /auth/google/config:
+    get:
+      tags: [Auth]
+      operationId: getGoogleConfig
+      summary: Read the Google sign-in client id
+      responses:
+        "200":
+          description: Public client id configured for Google Identity Services. The value is empty when Google sign-in is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleConfigResponse"
+
+  /auth/google:
+    post:
+      tags: [Auth]
+      operationId: signInWithGoogle
+      summary: Sign in or register with a Google ID token
+      description: "Verifies the Google credential, links it to an existing email when one matches, or creates a standard account. Locked accounts are rejected."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleAuthRequest"
+      responses:
+        "200":
+          description: Signed in. A refresh cookie is set. New Google users are also created with this status.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/RefreshCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The matched account is locked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      summary: Issue a new access token
+      description: "Reads the refresh_token cookie. The cookie is removed when the token is missing from the session store or has expired."
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: A new access token and the current user. The refresh cookie is not rotated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: The refresh cookie is missing, invalid, or expired. The cookie is cleared.
+          headers:
+            Set-Cookie:
+              description: The refresh cookie is deleted.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logOut
+      summary: End the current session
+      description: Deletes the stored refresh session when the cookie is present, then clears the cookie. The call succeeds even when no cookie is sent.
+      responses:
+        "200":
+          description: The refresh cookie is cleared.
+          headers:
+            Set-Cookie:
+              description: The refresh cookie is deleted.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                success: true
+                data:
+                  message: Logged out successfully
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getCurrentUser
+      summary: Read the signed-in user
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          description: The current user profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List active products
+      description: Returns every active product, ordered by name. Inactive products are omitted.
+      responses:
+        "200":
+          description: Active catalog.
+          headers:
+            Cache-Control:
+              description: "no-cache, no-store, must-revalidate"
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Create a product
+      description: Admin only. The slug is generated from the name. A product is created active. A name that produces an existing slug is rejected.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+            example:
+              name: E2E Test Lamp
+              description: Desk lamp created for a test run
+              price: 19.99
+              stock: 5
+      responses:
+        "201":
+          description: Product created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedProductResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /products/{productKey}:
+    parameters:
+      - name: productKey
+        in: path
+        required: true
+        description: |
+          For GET, the product slug. The slug `id` is reserved and returns 404 so it does not collide with `/products/id/{id}`.
+          For PATCH and DELETE, the numeric product id.
+        schema:
+          type: string
+          minLength: 1
+    get:
+      tags: [Products]
+      operationId: getProductBySlug
+      summary: Read one active product by slug
+      responses:
+        "200":
+          description: The product.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update product fields
+      description: "Admin only. productKey must be a numeric id. Sending a new name also regenerates the slug. At least one field is required. This can update inactive products."
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductRequest"
+      responses:
+        "200":
+          description: The product was updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Products]
+      operationId: deactivateProduct
+      summary: Deactivate a product
+      description: "Admin only. productKey must be a numeric id. Sets isActive to false. The row is kept so existing orders remain valid."
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          description: The product was deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /products/id/{id}:
+    get:
+      tags: [Products]
+      operationId: getProductById
+      summary: Read one active product by id
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          description: The product.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /cart:
+    get:
+      tags: [Cart]
+      operationId: getCart
+      summary: Read the session cart
+      description: Inactive products are dropped from the priced result. The stored session still keeps their ids until the cart is changed.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Cart lines, item count, and amount.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    delete:
+      tags: [Cart]
+      operationId: clearCart
+      summary: Remove every item from the session cart
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: The cart was cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearedCartResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      operationId: addCartItem
+      summary: Add a product to the cart
+      description: Quantity is added to an existing line. The resulting quantity cannot exceed the product stock or 99.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCartItemRequest"
+            example:
+              productId: 1
+              quantity: 1
+      responses:
+        "200":
+          description: The line quantity after the add.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartMutationResponse"
+        "400":
+          description: The body is invalid, the session header is missing, or the requested quantity exceeds stock.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ErrorResponse"
+                  - $ref: "#/components/schemas/ZodParseError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /cart/items/{productId}:
+    patch:
+      tags: [Cart]
+      operationId: updateCartItem
+      summary: Set a cart line quantity
+      description: A quantity of 0 removes the line.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/CartProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCartItemRequest"
+            example:
+              quantity: 2
+      responses:
+        "200":
+          description: The line was updated or removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartMutationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Cart]
+      operationId: removeCartItem
+      summary: Remove one cart line
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/CartProductId"
+      responses:
+        "200":
+          description: The line was removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemovedCartItemResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /orders:
+    get:
+      tags: [Orders]
+      operationId: listOrders
+      summary: List the signed-in customer's orders
+      description: Newest orders are first. Line items are not included.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          description: Orders for the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Orders]
+      operationId: placeOrder
+      summary: Check out the session cart
+      description: |
+        Requires a signed-in customer and the same `X-Session-ID` used to build the cart. The card number must pass the Luhn check. Only the last four digits are stored. Stock is reduced by each line quantity and the cart is deleted. The order status is `pending`.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+            example:
+              shipping:
+                firstName: Ada
+                lastName: Lovelace
+                address: 123 Test Street, Austin, TX 78701
+              payment:
+                cardNumber: "4242424242424242"
+                expiryDate: "12/30"
+                cvv: "123"
+                cardholderName: Ada Lovelace
+      responses:
+        "201":
+          description: The order was created. The response does not include line items or the card number.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "400":
+          description: Validation failed, the card failed the Luhn check, the cart is empty, or a line exceeds stock.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ErrorResponse"
+                  - $ref: "#/components/schemas/ZodParseError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      operationId: getOrder
+      summary: Read one order, including its lines
+      description: A customer can read only their own order. An admin can read any order.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order and its items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /images/{key}:
+    get:
+      tags: [Images]
+      operationId: getImage
+      summary: Download a stored image
+      description: |
+        `{key}` is the object key and may contain slashes, for example `products/1710000000000-ab12cd34.jpg`. Send the key without an extra leading slash. A matching `If-None-Match` header returns 304. A missing image returns an empty 404 body, not the JSON error envelope.
+      parameters:
+        - $ref: "#/components/parameters/ImageKey"
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+          description: ETag from a previous response.
+      responses:
+        "200":
+          description: The image bytes.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum: [image/jpeg, image/png, image/webp, image/gif, application/octet-stream]
+            Cache-Control:
+              description: Public cache for one year, immutable.
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                contentMediaType: image/jpeg
+            image/png:
+              schema:
+                type: string
+                contentMediaType: image/png
+            image/webp:
+              schema:
+                type: string
+                contentMediaType: image/webp
+            image/gif:
+              schema:
+                type: string
+                contentMediaType: image/gif
+        "304":
+          description: The client already has the current image.
+        "404":
+          description: The image does not exist. The body is empty.
+    delete:
+      tags: [Images]
+      operationId: deleteImage
+      summary: Delete a stored image
+      description: "Admin only. The key may contain slashes."
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ImageKey"
+      responses:
+        "200":
+          description: The image was deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletedImageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /images:
+    post:
+      tags: [Images]
+      operationId: uploadImage
+      summary: Upload an image
+      description: "Admin only. Accepts JPEG, PNG, WebP, or GIF up to 5 MB. The stored key is {folder}/{timestamp}-{id}.{extension}."
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageUploadRequest"
+      responses:
+        "201":
+          description: The image was stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/products:
+    get:
+      tags: [Admin]
+      operationId: listAdminProducts
+      summary: List products for inventory management
+      description: "Includes inactive products. Page size is 100. Dates are inclusive UTC dates compared with date(created_at). Name matching is a case-sensitive substring search."
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+          description: Substring matched against the product name.
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          description: "Inclusive created-date lower bound, YYYY-MM-DD."
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+          description: "Inclusive created-date upper bound, YYYY-MM-DD."
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, name]
+            default: createdAt
+        - name: direction
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 1
+      responses:
+        "200":
+          description: One page of products.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductListResponse"
+        "400":
+          $ref: "#/components/responses/EnvelopeValidation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/products/bulk-delete:
+    post:
+      tags: [Admin]
+      operationId: bulkDeleteProducts
+      summary: Delete or deactivate many products
+      description: |
+        Send either `ids` or `match`, not an empty body. Products that belong to an order are deactivated instead of deleted, and their images are kept. Products that do not belong to an order are deleted, including the stored image. A filter delete removes at most 1,000 products. `hasMore` is true when another request is required.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkDeleteRequest"
+            examples:
+              byId:
+                summary: Delete selected products
+                value:
+                  ids: [12, 13]
+              byFilter:
+                summary: Delete products matching a name and date
+                value:
+                  match:
+                    name: E2E Test
+                    from: "2026-10-01"
+                    to: "2026-10-18"
+      responses:
+        "200":
+          description: The delete finished.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkDeleteResponse"
+        "400":
+          $ref: "#/components/responses/EnvelopeValidation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/products/{id}/stock:
+    patch:
+      tags: [Admin]
+      operationId: updateProductStock
+      summary: Replace a product's stock count
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStockRequest"
+            example:
+              stock: 4
+      responses:
+        "200":
+          description: Stock was saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockUpdatedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/orders:
+    get:
+      tags: [Admin]
+      operationId: listAdminOrders
+      summary: List every order
+      description: Newest orders are first. Each row includes the customer username.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          description: All orders.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrderListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/orders/{id}:
+    get:
+      tags: [Admin]
+      operationId: getAdminOrder
+      summary: Read one order as an admin
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order, customer username, and line items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrderDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/orders/{id}/status:
+    patch:
+      tags: [Admin]
+      operationId: updateOrderStatus
+      summary: Change an order's status
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderStatusRequest"
+            example:
+              status: shipped
+      responses:
+        "200":
+          description: The status was saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderStatusUpdatedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/stats:
+    get:
+      tags: [Admin]
+      operationId: getAdminStats
+      summary: Read dashboard counts
+      description: Product count includes active products only. Low stock is an active product with stock below 10. Recent orders are the newest five.
+      security:
+        - bearerAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          description: Dashboard statistics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from login, signup, Google sign-in, or refresh. Expires in 15 minutes.
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Username and password. Admin operations still require an admin account.
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: HttpOnly refresh token set by a successful sign-in.
+
+  parameters:
+    SessionId:
+      name: X-Session-ID
+      in: header
+      required: true
+      description: Client-generated cart session. The same value must be sent to checkout.
+      schema:
+        type: string
+        minLength: 1
+    ProductId:
+      name: id
+      in: path
+      required: true
+      description: Product id.
+      schema:
+        type: integer
+        minimum: 1
+    CartProductId:
+      name: productId
+      in: path
+      required: true
+      description: Product id of a cart line.
+      schema:
+        type: integer
+        minimum: 1
+    OrderId:
+      name: id
+      in: path
+      required: true
+      description: Order id.
+      schema:
+        type: integer
+        minimum: 1
+    ImageKey:
+      name: key
+      in: path
+      required: true
+      description: Object key, including any folder prefix. Slashes are part of the key.
+      schema:
+        type: string
+        minLength: 1
+  headers:
+    RefreshCookie:
+      description: "HttpOnly refresh_token cookie. Max-Age is 604800 seconds."
+      schema:
+        type: string
+    PublicCache:
+      description: Public edge cache for five minutes.
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: The access token or basic credentials are missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Missing authentication
+    Forbidden:
+      description: The account is signed in but is not an admin.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: FORBIDDEN
+              message: Admin access required
+    NotFound:
+      description: The resource does not exist, is inactive, or is not visible to this caller.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: Product not found
+    BadRequest:
+      description: The request is malformed, a path id is invalid, or a business rule failed.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ErrorResponse"
+              - $ref: "#/components/schemas/ZodParseError"
+    ValidationFailed:
+      description: The JSON body failed schema validation before the handler ran.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ZodParseError"
+    EnvelopeValidation:
+      description: Query or body validation failed inside the handler.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: Validation failed
+              details:
+                from:
+                  - Start date must be on or before end date
+
+  schemas:
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - VALIDATION_ERROR
+            - ACCOUNT_LOCKED
+            - INVALID_CREDENTIALS
+            - OUT_OF_STOCK
+            - CART_EMPTY
+            - BAD_REQUEST
+            - CONFLICT
+            - INTERNAL_ERROR
+            - HTTP_ERROR
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Field paths mapped to validation messages.
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+    ZodIssue:
+      type: object
+      required: [code, path, message]
+      properties:
+        code:
+          type: string
+        path:
+          type: array
+          items:
+            oneOf:
+              - type: string
+              - type: integer
+        message:
+          type: string
+    ZodParseError:
+      type: object
+      required: [success, error]
+      description: Returned by the request validator before the route handler runs.
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: object
+          required: [issues, name]
+          properties:
+            name:
+              type: string
+              const: ZodError
+            issues:
+              type: array
+              items:
+                $ref: "#/components/schemas/ZodIssue"
+    UserType:
+      type: string
+      enum: [standard, locked, admin]
+    OrderStatus:
+      type: string
+      enum: [pending, processing, shipped, delivered, cancelled]
+    Timestamp:
+      type: string
+      description: SQLite datetime text or an ISO-8601 string.
+    User:
+      type: object
+      required: [id, username, userType, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        userType:
+          $ref: "#/components/schemas/UserType"
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        googleId:
+          type: string
+        avatarUrl:
+          type: string
+        ipAddress:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        location:
+          type: string
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+    AuthUser:
+      type: object
+      required: [id, username, userType]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        userType:
+          $ref: "#/components/schemas/UserType"
+        email:
+          type: string
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+    Product:
+      type: object
+      required: [id, name, slug, description, price, stock, imageKey, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+          exclusiveMinimum: 0
+          description: Price in US dollars.
+        stock:
+          type: integer
+          minimum: 0
+        imageKey:
+          type: ["string", "null"]
+        imageUrl:
+          type: string
+          description: "Present when imageKey is set. Relative path such as /api/images/products/lamp.jpg."
+        isActive:
+          type: boolean
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+    OrderItem:
+      type: object
+      required: [id, orderId, productId, quantity, unitPrice]
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        productId:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+        unitPrice:
+          type: number
+        productName:
+          type: string
+    Order:
+      type: object
+      required:
+        - id
+        - userId
+        - totalAmount
+        - status
+        - shippingFirstName
+        - shippingLastName
+        - shippingAddress
+        - paymentLastFour
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        totalAmount:
+          type: number
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        shippingFirstName:
+          type: string
+        shippingLastName:
+          type: string
+        shippingAddress:
+          type: string
+        paymentLastFour:
+          type: ["string", "null"]
+          description: Last four digits of the card. The full card number and CVV are never returned.
+        ipAddress:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        location:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+    CartItem:
+      type: object
+      required: [productId, quantity, product]
+      properties:
+        productId:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+        product:
+          $ref: "#/components/schemas/Product"
+    PageMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+    HealthResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [status, timestamp, environment]
+          properties:
+            status:
+              type: string
+              const: healthy
+            timestamp:
+              type: string
+              format: date-time
+            environment:
+              type: string
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Username or email.
+        password:
+          type: string
+          minLength: 1
+    SignupRequest:
+      type: object
+      required: [email, phone, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          minLength: 7
+          maxLength: 20
+        password:
+          type: string
+          minLength: 8
+          description: Must include one uppercase letter and one digit.
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_-]+$"
+    GoogleAuthRequest:
+      type: object
+      required: [credential]
+      properties:
+        credential:
+          type: string
+          minLength: 1
+          description: Google Identity Services ID token.
+    AuthResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [accessToken, user]
+          properties:
+            accessToken:
+              type: string
+            user:
+              $ref: "#/components/schemas/AuthUser"
+    UserResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/User"
+    GoogleConfigResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [clientId]
+          properties:
+            clientId:
+              type: string
+    MessageResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [message]
+          properties:
+            message:
+              type: string
+    CreateProductRequest:
+      type: object
+      required: [name, price, stock]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        price:
+          type: number
+          exclusiveMinimum: 0
+        stock:
+          type: integer
+          minimum: 0
+        imageKey:
+          type: string
+          description: Key returned by the image upload.
+    UpdateProductRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        price:
+          type: number
+          exclusiveMinimum: 0
+        stock:
+          type: integer
+          minimum: 0
+        imageKey:
+          type: string
+        isActive:
+          type: boolean
+    ProductResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/Product"
+    ProductListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        meta:
+          $ref: "#/components/schemas/PageMeta"
+    CreatedProductResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [id, slug]
+          properties:
+            id:
+              type: integer
+            slug:
+              type: string
+    UpdatedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [id, updated]
+          properties:
+            id:
+              type: integer
+            updated:
+              type: boolean
+              const: true
+    DeletedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [id, deleted]
+          properties:
+            id:
+              type: integer
+            deleted:
+              type: boolean
+              const: true
+    AddCartItemRequest:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 99
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+          maximum: 99
+    CartResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [items, totalItems, totalAmount]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/CartItem"
+            totalItems:
+              type: integer
+              minimum: 0
+            totalAmount:
+              type: number
+              minimum: 0
+    CartMutationResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [productId, quantity, totalItems]
+          properties:
+            productId:
+              type: integer
+            quantity:
+              type: integer
+              minimum: 0
+            totalItems:
+              type: integer
+              minimum: 0
+    RemovedCartItemResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [productId, removed, totalItems]
+          properties:
+            productId:
+              type: integer
+            removed:
+              type: boolean
+              const: true
+            totalItems:
+              type: integer
+              minimum: 0
+    ClearedCartResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [cleared, totalItems]
+          properties:
+            cleared:
+              type: boolean
+              const: true
+            totalItems:
+              type: integer
+              const: 0
+    Shipping:
+      type: object
+      required: [firstName, lastName, address]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        address:
+          type: string
+          minLength: 1
+          maxLength: 500
+    Payment:
+      type: object
+      required: [cardNumber, expiryDate, cvv, cardholderName]
+      properties:
+        cardNumber:
+          type: string
+          minLength: 13
+          maxLength: 19
+          description: "Digits only. Must pass the Luhn check. 4242424242424242 is the published test card."
+        expiryDate:
+          type: string
+          pattern: "^(0[1-9]|1[0-2])/\\d{2}$"
+          description: "Expiry in MM/YY."
+        cvv:
+          type: string
+          pattern: "^\\d{3,4}$"
+        cardholderName:
+          type: string
+          minLength: 1
+    CreateOrderRequest:
+      type: object
+      required: [shipping, payment]
+      properties:
+        shipping:
+          $ref: "#/components/schemas/Shipping"
+        payment:
+          $ref: "#/components/schemas/Payment"
+    OrderResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/Order"
+    OrderDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          allOf:
+            - $ref: "#/components/schemas/Order"
+            - type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/OrderItem"
+    OrderListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        meta:
+          $ref: "#/components/schemas/PageMeta"
+    ImageUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          description: JPEG, PNG, WebP, or GIF. Maximum size is 5 MB.
+        folder:
+          type: string
+          default: products
+          description: "Key prefix. Defaults to products."
+    ImageUploadResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [key, url, size, type]
+          properties:
+            key:
+              type: string
+            url:
+              type: string
+            size:
+              type: integer
+            type:
+              type: string
+    DeletedImageResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [key, deleted]
+          properties:
+            key:
+              type: string
+            deleted:
+              type: boolean
+              const: true
+    AdminProductListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        meta:
+          type: object
+          required: [total, page, limit]
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            limit:
+              type: integer
+              const: 100
+    ProductMatch:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        from:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        to:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      description: "At least one of name, from, or to is required. from must be on or before to."
+    BulkDeleteRequest:
+      type: object
+      description: "Provide ids, match, or both. At least one is required. ids accepts at most 500 ids."
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: integer
+            minimum: 1
+        match:
+          $ref: "#/components/schemas/ProductMatch"
+    BulkDeleteResult:
+      type: object
+      required: [requested, deleted, deactivated, notFound, hasMore]
+      properties:
+        requested:
+          type: integer
+          minimum: 0
+        deleted:
+          type: integer
+          minimum: 0
+        deactivated:
+          type: integer
+          minimum: 0
+          description: Products kept because an order references them.
+        notFound:
+          type: integer
+          minimum: 0
+        hasMore:
+          type: boolean
+          description: True when a filter match still has products after the 1,000-row limit.
+    BulkDeleteResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: "#/components/schemas/BulkDeleteResult"
+    UpdateStockRequest:
+      type: object
+      required: [stock]
+      properties:
+        stock:
+          type: integer
+          minimum: 0
+    StockUpdatedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [id, stock]
+          properties:
+            id:
+              type: integer
+            stock:
+              type: integer
+              minimum: 0
+    AdminOrder:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          required: [username]
+          properties:
+            username:
+              type: string
+    AdminOrderListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminOrder"
+        meta:
+          $ref: "#/components/schemas/PageMeta"
+    AdminOrderDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          allOf:
+            - $ref: "#/components/schemas/AdminOrder"
+            - type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/OrderItem"
+    UpdateOrderStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+    OrderStatusUpdatedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [id, status]
+          properties:
+            id:
+              type: integer
+            status:
+              $ref: "#/components/schemas/OrderStatus"
+    RecentOrder:
+      type: object
+      required: [id, totalAmount, status, createdAt, username]
+      properties:
+        id:
+          type: integer
+        totalAmount:
+          type: number
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        username:
+          type: string
+    LowStockProduct:
+      type: object
+      required: [id, name, stock]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 9
+    AdminStatsResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          required: [counts, recentOrders, lowStockProducts]
+          properties:
+            counts:
+              type: object
+              required: [products, orders, users, pendingOrders]
+              properties:
+                products:
+                  type: integer
+                  minimum: 0
+                orders:
+                  type: integer
+                  minimum: 0
+                users:
+                  type: integer
+                  minimum: 0
+                pendingOrders:
+                  type: integer
+                  minimum: 0
+            recentOrders:
+              type: array
+              maxItems: 5
+              items:
+                $ref: "#/components/schemas/RecentOrder"
+            lowStockProducts:
+              type: array
+              items:
+                $ref: "#/components/schemas/LowStockProduct"
