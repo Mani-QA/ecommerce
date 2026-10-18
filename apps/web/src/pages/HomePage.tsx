@@ -51,6 +51,7 @@ export default function HomePage() {
                     Browse Products
                   </Button>
                 </Link>
+                <AgentToolsSection />
                 {!isAuthenticated && (
                   <Link to="/login">
                     <Button variant="secondary" size="lg" data-testid="hero-signin-button">
@@ -102,8 +103,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <AgentToolsSection />
 
       {/* Featured Products */}
       <section className="py-20">
